@@ -43,4 +43,4 @@ def inference():
 
     return block1Output
 
-print inference()
+print(inference())

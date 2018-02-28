@@ -47,9 +47,9 @@ def train():
             # train
             coord = tf.train.Coordinator()
             threads = tf.train.start_queue_runners(sess=sess, coord=coord)
-            for step in xrange(MAX_STEPS):
+            for step in range(MAX_STEPS):
                 index = 0
-                for i in xrange(1000):
+                for i in range(1000):
                     summary, loss_value, logits_val, images_val = sess.run([train_op, loss, logits, images], feed_dict={keep_conv: 0.8, keep_hidden: 0.5})
                     if index % 10 == 0:
                         #test_writer.add_summary(summary, index)

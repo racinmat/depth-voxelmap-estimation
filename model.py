@@ -142,8 +142,8 @@ def inference(images, reuse=False, trainable=True):
     conv1b = maxPool("max1", conv1, kernelSize=3, stride=2)
 
     conv1 = resizeLayer("resize1", conv1b, initInputSize=64, smallSize=64, bigSize=256)
-    print "conv1"
-    print conv1
+    print("conv1")
+    print(conv1)
     
     for i in range(2):
         conv1 = nonResizeLayer("resize2"+str(i), conv1, initInputSize=256, smallSize=64, bigSize=256)
@@ -151,41 +151,41 @@ def inference(images, reuse=False, trainable=True):
     conv1 = resizeLayer("resize3", conv1, initInputSize=256, smallSize=128, bigSize=512, stride=2)
 
     l1concat = conv1
-    print "l1concat"
-    print l1concat
+    print("l1concat")
+    print(l1concat)
 
     for i in range(7):
         conv1 = nonResizeLayer("resize4"+str(i), conv1, initInputSize=512, smallSize=128, bigSize=512)
     
     l2concat = conv1
-    print "l2concat"
-    print l2concat
+    print("l2concat")
+    print(l2concat)
 
     conv1 = resizeLayer("resize5", conv1, initInputSize=512, smallSize=256, bigSize=1024)
 
     l3concat = conv1
-    print "l3concat"
-    print l3concat
+    print("l3concat")
+    print(l3concat)
 
     for i in range(35):
         conv1 = nonResizeLayer("resize6"+str(i), conv1, initInputSize=1024, smallSize=256, bigSize=1024)
 
     l4concat = conv1
-    print "l4concat"
-    print l4concat
+    print("l4concat")
+    print(l4concat)
 
     conv1 = resizeLayer("resize7", conv1, initInputSize=1024, smallSize=512, bigSize=2048)
 
     l5concat = conv1
-    print "l5concat"
-    print l5concat
+    print("l5concat")
+    print(l5concat)
 
     for i in range(2):
         conv1 = nonResizeLayer("resize8"+str(i), conv1, initInputSize=2048, smallSize=512, bigSize=2048)
 
     l6concat = conv1
-    print "l6concat"
-    print l6concat
+    print("l6concat")
+    print(l6concat)
 
     conv1 = tf.concat([l1concat, l2concat, l3concat, l4concat, l5concat, l6concat], 3)
 
@@ -200,10 +200,10 @@ def inference(images, reuse=False, trainable=True):
 def loss(logits, depths, invalid_depths):
     logits_flat = tf.reshape(logits, [-1, 120*160])
     depths_flat = tf.reshape(depths, [-1, 120*160])
-    print "logits_flat"
-    print logits_flat
-    print "depths_flat"
-    print depths_flat
+    print("logits_flat")
+    print(logits_flat)
+    print("depths_flat")
+    print(depths_flat)
     invalid_depths_flat = tf.reshape(invalid_depths, [-1, 120*160])
 
     predict = tf.multiply(logits_flat, invalid_depths_flat)
