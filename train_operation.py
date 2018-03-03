@@ -32,18 +32,8 @@ def train(total_loss, global_step, batch_size):
     loss_averages_op = _add_loss_summaries(total_loss)
     with tf.control_dependencies([loss_averages_op]):
         opt = tf.train.AdamOptimizer(lr)
-        grads = opt.compute_gradients(total_loss)
-    apply_gradient_op = opt.apply_gradients(grads, global_step=global_step)
     for var in tf.trainable_variables():
         print(var.op.name)
         tf.summary.histogram(var.op.name, var)
-    for grad, var in grads:
-        if grad is not None:
-            tf.summary.histogram(var.op.name + '/gradients', grad)
-    variable_averages = tf.train.ExponentialMovingAverage(
-        MOVING_AVERAGE_DECAY, global_step)
-    variables_averages_op = variable_averages.apply(tf.trainable_variables())
-    with tf.control_dependencies([apply_gradient_op, variables_averages_op]):
-        train_op = tf.no_op(name='train')
 
     return opt.minimize(total_loss)
