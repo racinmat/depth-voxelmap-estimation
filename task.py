@@ -72,8 +72,8 @@ def train():
             coord = tf.train.Coordinator()
             threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
-            test_logits_val = None
-            test_images_val = None
+            # test_logits_val = None
+            # test_images_val = None
 
             iterations = 1000
             for step in range(MAX_STEPS):
@@ -90,7 +90,7 @@ def train():
                         assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
                     if index % 500 == 0:
                         output_predict(logits_val, images_val, "data/predict_%05d_%05d" % (step, i))
-                        output_predict(test_logits_val, test_images_val, "data/test_predict_%05d_%05d" % (step, i))
+                        # output_predict(test_logits_val, test_images_val, "data/test_predict_%05d_%05d" % (step, i))
                         save_model(saver, sess, step * iterations + i)
 
                     # train_writer.add_summary(summary, sess)
