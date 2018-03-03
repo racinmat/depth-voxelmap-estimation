@@ -40,7 +40,6 @@ def train():
                 os.environ[devices_environ_var] = available_devices[gpu]
 
     with tf.Graph().as_default():
-        saver = tf.train.Saver()
         global_step = tf.Variable(0, trainable=False)
         dataset = DataSet(BATCH_SIZE)
         images, depths, invalid_depths = dataset.csv_inputs(TRAIN_FILE)
@@ -48,10 +47,10 @@ def train():
         keep_conv = tf.placeholder(tf.float32)
         keep_hidden = tf.placeholder(tf.float32)
         logits = model.inference(images, keep_conv, keep_hidden)
-        test_logits = model.inference(test_images, keep_conv, keep_hidden)
         loss = model.loss(logits, depths, invalid_depths)
         train_op = op.train(loss, global_step, BATCH_SIZE)
         init_op = tf.global_variables_initializer()
+        saver = tf.train.Saver()    # saver must be initialized after network is set up
 
         # Session
         with tf.Session(config=config) as sess:
@@ -82,12 +81,12 @@ def train():
                 for i in range(iterations):
                     summary, loss_value, logits_val, images_val = sess.run([train_op, loss, logits, images], feed_dict={keep_conv: 0.8, keep_hidden: 0.5})
                     if index % 10 == 0:
-                        test_loss_value, test_logits_val, test_images_val = sess.run([loss, test_logits, test_images],
-                                                                               feed_dict={keep_conv: 0.8,
-                                                                                          keep_hidden: 0.5})
+                        # test_loss_value, test_logits_val, test_images_val = sess.run([loss, test_logits, test_images],
+                        #                                                        feed_dict={keep_conv: 0.8,
+                        #                                                                   keep_hidden: 0.5})
                         test_writer.add_summary(summary, index)
                         print("%s: %d[epoch]: %d[iteration]: train loss %f" % (datetime.now(), step, index, loss_value))
-                        print("%s: %d[epoch]: %d[iteration]: test loss %f" % (datetime.now(), step, index, test_loss_value))
+                        # print("%s: %d[epoch]: %d[iteration]: test loss %f" % (datetime.now(), step, index, test_loss_value))
                         assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
                     if index % 500 == 0:
                         output_predict(logits_val, images_val, "data/predict_%05d_%05d" % (step, i))
