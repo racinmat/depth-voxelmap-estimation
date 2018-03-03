@@ -13,7 +13,7 @@ import time
 
 current_time = time.strftime("%Y-%m-%d--%H-%M-%S", time.gmtime())
 
-MAX_STEPS = 10000000
+MAX_EPOCHS = 10000000
 LOG_DEVICE_PLACEMENT = False
 BATCH_SIZE = 8
 TRAIN_FILE = "train.csv"
@@ -75,30 +75,26 @@ def train():
             # test_images_val = None
 
             iterations = 1000
-            for step in range(MAX_STEPS):
-                index = 0
+            index = 0
+            for epoch in range(MAX_EPOCHS):
                 for i in range(iterations):
                     _, loss_value, logits_val, images_val, summary_str = sess.run(
                         [train_op, loss, logits, images, summary],
                         feed_dict={keep_conv: 0.8, keep_hidden: 0.5})
-                    if index % 10 == 0:
-                        # test_loss_value, test_logits_val, test_images_val = sess.run([loss, test_logits, test_images],
-                        #                                                        feed_dict={keep_conv: 0.8,
-                        #                                                                   keep_hidden: 0.5})
-                        # test_writer.add_summary(summary, index)
-                        print("%s: %d[epoch]: %d[iteration]: train loss %f" % (datetime.now(), step, index, loss_value))
-                        # print("%s: %d[epoch]: %d[iteration]: test loss %f" % (datetime.now(), step, index, test_loss_value))
+                    writer.add_summary(summary_str, index)
+                    if i % 10 == 0:
+                        print("%s: %d[epoch]: %d[iteration]: train loss %f" % (datetime.now(), epoch, i, loss_value))
                         assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
-                    if index % 500 == 0:
-                        output_predict(logits_val, images_val, os.path.join(PREDICT_DIR, "iter_%05d_%05d" % (step, i)))
-                        # output_predict(test_logits_val, test_images_val, "data/test_predict_%05d_%05d" % (step, i))
-                        save_model(saver, sess, step * iterations + i)
+                    if i % 500 == 0:
+                        output_predict(logits_val, images_val, os.path.join(PREDICT_DIR, "iter_%05d_%05d" % (epoch, i)))
+                        save_model(saver, sess, index)
 
-                    writer.add_summary(summary_str, sess)
                     index += 1
 
             coord.request_stop()
             coord.join(threads)
+            writer.flush()
+            writer.close()
 
 
 def save_model(saver, sess, counter):

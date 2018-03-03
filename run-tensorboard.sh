@@ -11,4 +11,4 @@ source gan2/bin/activate
 
 cd /mnt/datagrid/personal/racinmat/depthEstimationNN1
 
-tensorboard --logdir=./train
+tensorboard --logdir=./logs
