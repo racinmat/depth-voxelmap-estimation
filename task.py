@@ -79,12 +79,12 @@ def train():
             for step in range(MAX_STEPS):
                 index = 0
                 for i in range(iterations):
-                    summary, loss_value, logits_val, images_val = sess.run([train_op, loss, logits, images], feed_dict={keep_conv: 0.8, keep_hidden: 0.5})
+                    _, loss_value, logits_val, images_val = sess.run([train_op, loss, logits, images], feed_dict={keep_conv: 0.8, keep_hidden: 0.5})
                     if index % 10 == 0:
                         # test_loss_value, test_logits_val, test_images_val = sess.run([loss, test_logits, test_images],
                         #                                                        feed_dict={keep_conv: 0.8,
                         #                                                                   keep_hidden: 0.5})
-                        test_writer.add_summary(summary, index)
+                        # test_writer.add_summary(summary, index)
                         print("%s: %d[epoch]: %d[iteration]: train loss %f" % (datetime.now(), step, index, loss_value))
                         # print("%s: %d[epoch]: %d[iteration]: test loss %f" % (datetime.now(), step, index, test_loss_value))
                         assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
@@ -93,7 +93,7 @@ def train():
                         output_predict(test_logits_val, test_images_val, "data/test_predict_%05d_%05d" % (step, i))
                         save_model(saver, sess, step * iterations + i)
 
-                    train_writer.add_summary(summary, sess)
+                    # train_writer.add_summary(summary, sess)
                     index += 1
 
             coord.request_stop()
