@@ -8,6 +8,7 @@ from dataset import DataSet
 from dataset import output_predict
 import model
 import train_operation as op
+import os
 
 MAX_STEPS = 10000000
 LOG_DEVICE_PLACEMENT = False
@@ -15,8 +16,24 @@ BATCH_SIZE = 8
 TRAIN_FILE = "train.csv"
 COARSE_DIR = "coarse"
 REFINE_DIR = "refine"
+GPU_IDX = [0, 1]
+
 
 def train():
+    # GPU settings
+    config = tf.ConfigProto(log_device_placement=LOG_DEVICE_PLACEMENT)
+    config.gpu_options.allow_growth = False
+    config.gpu_options.allocator_type = 'BFC'
+    devices_environ_var = 'CUDA_VISIBLE_DEVICES'
+    if devices_environ_var in os.environ:
+        available_devices = os.environ[devices_environ_var].split(',')
+        if len(available_devices):
+            if isinstance(GPU_IDX, list):
+                os.environ[devices_environ_var] = ', '.join([available_devices[gpu] for gpu in GPU_IDX])
+            else:
+                gpu = GPU_IDX
+                os.environ[devices_environ_var] = available_devices[gpu]
+
     with tf.Graph().as_default():
         global_step = tf.Variable(0, trainable=False)
         dataset = DataSet(BATCH_SIZE)
@@ -29,7 +46,7 @@ def train():
         init_op = tf.global_variables_initializer()
 
         # Session
-        with tf.Session(config=tf.ConfigProto(log_device_placement=LOG_DEVICE_PLACEMENT)) as sess:
+        with tf.Session(config=config) as sess:
             sess.run(init_op)
             # parameters
             # Merge all the summaries and write them out to /tmp/mnist_logs (by default)
