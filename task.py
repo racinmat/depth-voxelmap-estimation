@@ -92,9 +92,9 @@ def train():
                     if index % 500 == 0:
                         output_predict(logits_val, images_val, "data/predict_%05d_%05d" % (step, i))
                         output_predict(test_logits_val, test_images_val, "data/test_predict_%05d_%05d" % (step, i))
-                        save_model(saver, step * iterations + i)
+                        save_model(saver, sess, step * iterations + i)
 
-                    train_writer.add_summary(summary, sess, index)
+                    train_writer.add_summary(summary, sess)
                     index += 1
 
             coord.request_stop()
@@ -104,8 +104,8 @@ def train():
 def save_model(saver, sess, counter):
     checkpoint_dir = os.path.join(CHECKPOINT_DIR, MODEL_DIR)
 
-    if not os.path.exists(checkpoint_dir):
-        os.makedirs(checkpoint_dir)
+    if not gfile.Exists(checkpoint_dir):
+        gfile.MakeDirs(checkpoint_dir)
 
     saver.save(sess, checkpoint_dir, global_step=counter)
 
