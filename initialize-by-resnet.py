@@ -38,9 +38,7 @@ with tf.Graph().as_default():
     saver.restore(sess, checkpoint_name)
 
     network = Network.Network()
-    dataset = DataSet(Network.BATCH_SIZE)
-    images, depths, invalid_depths = dataset.csv_inputs(Network.TRAIN_FILE)
-    logits = network.inference(images)
+    network.prepare()
     weights = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
     print(weights)
 

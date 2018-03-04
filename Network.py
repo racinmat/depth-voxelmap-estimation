@@ -6,7 +6,6 @@ import tensorflow as tf
 
 import dataset
 from dataset import DataSet, output_predict
-import model
 import train_operation as op
 import os
 import time
@@ -98,6 +97,24 @@ class Network(object):
                 conv1 = tf.nn.relu(conv1, 'relu')
 
                 return conv1
+
+    def initialize_by_resnet(self):
+        if self.saver is None:
+            raise Exception('Saver not initialized')
+
+        self.saver.restore(self.sess, 'init-weights/resnet')
+        print('weights initialized')
+
+    def prepare(self):
+        dataset = DataSet(BATCH_SIZE)
+        global_step = tf.Variable(0, trainable=False)
+        images, depths, invalid_depths = dataset.csv_inputs(TRAIN_FILE)
+        logits = self.inference(images)
+        loss = self.loss(logits, depths, invalid_depths)
+        train_op = op.train(loss, global_step, BATCH_SIZE)
+        init_op = tf.global_variables_initializer()
+        self.saver = tf.train.Saver()  # saver must be initialized after network is set up
+        return train_op, init_op
 
     def inference(self, images):
         batch_norm_params = {
@@ -200,19 +217,13 @@ class Network(object):
         # return tf.add_n(tf.get_collection('losses'), name='total_loss')
 
     def train(self):
-        dataset = DataSet(BATCH_SIZE)
         with tf.Graph().as_default():
-            global_step = tf.Variable(0, trainable=False)
-            images, depths, invalid_depths = dataset.csv_inputs(TRAIN_FILE)
-            logits = self.inference(images)
-            loss = self.loss(logits, depths, invalid_depths)
-            train_op = op.train(loss, global_step, BATCH_SIZE)
-            init_op = tf.global_variables_initializer()
-            self.saver = tf.train.Saver()  # saver must be initialized after network is set up
+            train_op, init_op = self.prepare()
 
             # Session
             with tf.Session(config=self.config) as self.sess:
                 self.sess.run(init_op)
+                self.initialize_by_resnet()
                 # parameters
                 summary = tf.summary.merge_all()  # merge all summaries to dump them for tensorboard
                 writer = tf.summary.FileWriter(os.path.join(LOGS_DIR, current_time), self.sess.graph)
