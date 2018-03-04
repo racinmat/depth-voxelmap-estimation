@@ -114,8 +114,7 @@ class Network(object):
                        biases_initializer=tf.constant_initializer(0.1),
                        weights_regularizer=slim.l2_regularizer(CONV_WEIGHT_DECAY)
                        ):
-            conv1 = slim.conv2d(images, num_outputs=64, scope='conv1', kernel_size=7, stride=2, normalizer_fn=None,
-                                activation_fn=tf.nn.relu)
+            conv1 = slim.conv2d(images, num_outputs=64, scope='conv1', kernel_size=7, stride=2, activation_fn=tf.nn.relu)
 
             max1 = slim.max_pool2d(conv1, kernel_size=3, stride=2, scope='maxpool1')
 
