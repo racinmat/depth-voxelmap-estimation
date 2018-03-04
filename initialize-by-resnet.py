@@ -27,8 +27,8 @@ def print_tensors_in_checkpoint_file(file_name, tensor_name, all_tensors):
 
 
 with tf.Graph().as_default():
-    checkpoint_name = r'D:\projekty\GTA-V-extractors\tensorflow-resnet\tensorflow-resnet-pretrained-20160509\ResNet-L152.ckpt'
-    meta_file = r'D:\projekty\GTA-V-extractors\tensorflow-resnet\tensorflow-resnet-pretrained-20160509\ResNet-L152.meta'
+    checkpoint_name = r'../tensorflow-resnet/tensorflow-resnet-pretrained-20160509/ResNet-L152.ckpt'
+    meta_file = r'../tensorflow-resnet/tensorflow-resnet-pretrained-20160509/ResNet-L152.meta'
     saver = tf.train.import_meta_graph(meta_file)
 
     a = print_tensors_in_checkpoint_file(file_name=checkpoint_name, all_tensors=True, tensor_name=None)

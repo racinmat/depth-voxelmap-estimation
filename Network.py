@@ -99,10 +99,9 @@ class Network(object):
                 return conv1
 
     def initialize_by_resnet(self):
-        if self.saver is None:
-            raise Exception('Saver not initialized')
-
-        self.saver.restore(self.sess, 'init-weights/resnet')
+        # I initialize only trainable variables, not others. Now is unified saving and restoring
+        loader = tf.train.Saver(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='network'))
+        loader.restore(self.sess, 'init-weights/resnet')
         print('weights initialized')
 
     def prepare(self):
@@ -112,9 +111,8 @@ class Network(object):
         logits = self.inference(images)
         loss = self.loss(logits, depths, invalid_depths)
         train_op = op.train(loss, global_step, BATCH_SIZE)
-        init_op = tf.global_variables_initializer()
         self.saver = tf.train.Saver()  # saver must be initialized after network is set up
-        return train_op, init_op
+        return train_op
 
     def inference(self, images):
         batch_norm_params = {
@@ -218,16 +216,15 @@ class Network(object):
 
     def train(self):
         with tf.Graph().as_default():
-            train_op, init_op = self.prepare()
+            train_op = self.prepare()
 
             # Session
             with tf.Session(config=self.config) as self.sess:
-                self.sess.run(init_op)
+                self.sess.run(tf.global_variables_initializer())
                 self.initialize_by_resnet()
                 # parameters
                 summary = tf.summary.merge_all()  # merge all summaries to dump them for tensorboard
                 writer = tf.summary.FileWriter(os.path.join(LOGS_DIR, current_time), self.sess.graph)
-                tf.global_variables_initializer().run()
 
                 for variable in tf.trainable_variables():
                     variable_name = variable.name
