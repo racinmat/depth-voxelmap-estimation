@@ -121,7 +121,7 @@ with tf.Graph().as_default():
 
     for prefix_from, (prefix_to, has_shortcut) in mappings_prefix.items():
         for name_from, name_to in mappings.items():
-            if not has_shortcut and name_to == 'shortcut':
+            if (not has_shortcut) and name_from == 'shortcut':
                 continue
             for suffix_from, suffix_to in mappings_suffix.items():
                 # all variables in my network are are in same scopre so I can identify them easily
