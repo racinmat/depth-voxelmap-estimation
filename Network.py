@@ -38,8 +38,10 @@ GPU_IDX = [0]
 class Network(object):
 
     def __init__(self):
-        # GPU settings
+        self.sess = None
         self.saver = None
+
+        # GPU settings
         self.config = tf.ConfigProto(log_device_placement=LOG_DEVICE_PLACEMENT)
         self.config.gpu_options.allow_growth = False
         self.config.gpu_options.allocator_type = 'BFC'
@@ -122,7 +124,7 @@ class Network(object):
             print(conv1)
 
             for i in range(2):
-                conv1 = self.non_resize_layer("resize2" + str(i), conv1, small_size=64, big_size=256)
+                conv1 = self.non_resize_layer("resize2-" + str(i), conv1, small_size=64, big_size=256)
 
             conv1 = self.resize_layer("resize3", conv1, small_size=128, big_size=512, stride=2)
 
@@ -131,7 +133,7 @@ class Network(object):
             print(l1concat)
 
             for i in range(7):
-                conv1 = self.non_resize_layer("resize4" + str(i), conv1, small_size=128, big_size=512)
+                conv1 = self.non_resize_layer("resize4-" + str(i), conv1, small_size=128, big_size=512)
 
             l2concat = conv1
             print("l2concat")
@@ -144,7 +146,7 @@ class Network(object):
             print(l3concat)
 
             for i in range(35):
-                conv1 = self.non_resize_layer("resize6" + str(i), conv1, small_size=256, big_size=1024, rate=2)
+                conv1 = self.non_resize_layer("resize6-" + str(i), conv1, small_size=256, big_size=1024, rate=2)
 
             l4concat = conv1
             print("l4concat")
@@ -157,7 +159,7 @@ class Network(object):
             print(l5concat)
 
             for i in range(2):
-                conv1 = self.non_resize_layer("resize8" + str(i), conv1, small_size=512, big_size=2048, rate=4)
+                conv1 = self.non_resize_layer("resize8-" + str(i), conv1, small_size=512, big_size=2048, rate=4)
 
             l6concat = conv1
             print("l6concat")
@@ -169,9 +171,6 @@ class Network(object):
 
             conv1 = slim.conv2d(conv1, num_outputs=200, scope='convFinal', kernel_size=3, stride=1, normalizer_fn=None,
                                 activation_fn=None)
-
-            conv1 = slim.conv2d_transpose(conv1, num_outputs=200, scope='convFinal2', kernel_size=8, stride=4,
-                                          normalizer_fn=None, activation_fn=tf.nn.relu)
 
             conv1 = tf.layers.conv2d_transpose(conv1, 1, 8, strides=(4, 4), padding='SAME')
 
@@ -212,11 +211,11 @@ class Network(object):
             self.saver = tf.train.Saver()  # saver must be initialized after network is set up
 
             # Session
-            with tf.Session(config=self.config) as sess:
-                sess.run(init_op)
+            with tf.Session(config=self.config) as self.sess:
+                self.sess.run(init_op)
                 # parameters
                 summary = tf.summary.merge_all()  # merge all summaries to dump them for tensorboard
-                writer = tf.summary.FileWriter(LOGS_DIR, sess.graph)
+                writer = tf.summary.FileWriter(os.path.join(LOGS_DIR, current_time), self.sess.graph)
                 tf.global_variables_initializer().run()
 
                 for variable in tf.trainable_variables():
@@ -227,7 +226,7 @@ class Network(object):
 
                 # train
                 coord = tf.train.Coordinator()
-                threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+                threads = tf.train.start_queue_runners(sess=self.sess, coord=coord)
 
                 # test_logits_val = None
                 # test_images_val = None
@@ -236,7 +235,7 @@ class Network(object):
                 index = 0
                 for epoch in range(MAX_EPOCHS):
                     for i in range(iterations):
-                        _, loss_value, logits_val, images_val, summary_str = sess.run(
+                        _, loss_value, logits_val, images_val, summary_str = self.sess.run(
                             [train_op, loss, logits, images, summary])
                         writer.add_summary(summary_str, index)
                         if i % 10 == 0:
@@ -246,7 +245,7 @@ class Network(object):
                         if i % 500 == 0:
                             output_predict(logits_val, images_val,
                                            os.path.join(PREDICT_DIR, "iter_%05d_%05d" % (epoch, i)))
-                            self.save_model(sess, index)
+                            self.save_model(self.sess, index)
 
                         index += 1
 
