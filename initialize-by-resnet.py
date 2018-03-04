@@ -134,4 +134,4 @@ with tf.Graph().as_default():
     sess.run(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='network'))     # so all weights are actually being assigned
     print('tensors runs, going to save them')
     new_saver = tf.train.Saver(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='network'))
-    new_saver.save(sess, 'init-weights', global_step=0)
+    new_saver.save(sess, 'init-weights/resnet')
