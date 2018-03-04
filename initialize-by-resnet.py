@@ -44,6 +44,8 @@ with tf.Graph().as_default():
     weights = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
     print(weights)
 
+    sess.run(tf.global_variables_initializer())
+
     mappings_prefix = {
         # 'scale1': 'conv1',
         'scale2/block1': ('resize1', True),  # first is name, second is shortcut present
@@ -129,7 +131,7 @@ with tf.Graph().as_default():
                           tf.get_default_graph().get_tensor_by_name("{}/{}/{}:0".format(prefix_from, name_from, suffix_from)))
 
     print('everything assigned, running to apply these assignments')
-    network.sess.run(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='network'))     # so all weights are actually being assigned
+    sess.run(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='network'))     # so all weights are actually being assigned
     print('tensors runs, going to save them')
     new_saver = tf.train.Saver(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='network'))
-    new_saver.save(network.sess, 'init-weights', global_step=0)
+    new_saver.save(sess, 'init-weights', global_step=0)
