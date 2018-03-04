@@ -115,9 +115,9 @@ with tf.Graph().as_default():
     tf.assign(tf.get_default_graph().get_tensor_by_name("network/conv1/weights:0"),
               tf.get_default_graph().get_tensor_by_name("scale1/weights:0"))
     tf.assign(tf.get_default_graph().get_tensor_by_name("network/conv1/batch_norm/beta:0"),
-              tf.get_default_graph().get_tensor_by_name("scale1/weights:0"))
+              tf.get_default_graph().get_tensor_by_name("scale1/beta:0"))
     tf.assign(tf.get_default_graph().get_tensor_by_name("network/conv1/batch_norm/gamma:0"),
-              tf.get_default_graph().get_tensor_by_name("scale1/weights:0"))
+              tf.get_default_graph().get_tensor_by_name("scale1/gamma:0"))
 
     for prefix_from, (prefix_to, has_shortcut) in mappings_prefix.items():
         for name_from, name_to in mappings.items():
