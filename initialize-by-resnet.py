@@ -111,12 +111,12 @@ with tf.Graph().as_default():
         'gamma': 'batch_norm/gamma',
     }
     print(b[0].shape)
-    print(tf.get_default_graph().get_tensor_by_name("conv1/weights:0").shape)
-    tf.assign(tf.get_default_graph().get_tensor_by_name("conv1/weights:0"),
+    print(tf.get_default_graph().get_tensor_by_name("network/conv1/weights:0").shape)
+    tf.assign(tf.get_default_graph().get_tensor_by_name("network/conv1/weights:0"),
               tf.get_default_graph().get_tensor_by_name("scale1/weights:0"))
-    tf.assign(tf.get_default_graph().get_tensor_by_name("conv1/batch_norm/beta:0"),
+    tf.assign(tf.get_default_graph().get_tensor_by_name("network/conv1/batch_norm/beta:0"),
               tf.get_default_graph().get_tensor_by_name("scale1/weights:0"))
-    tf.assign(tf.get_default_graph().get_tensor_by_name("conv1/batch_norm/gamma:0"),
+    tf.assign(tf.get_default_graph().get_tensor_by_name("network/conv1/batch_norm/gamma:0"),
               tf.get_default_graph().get_tensor_by_name("scale1/weights:0"))
 
     for prefix_from, (prefix_to, has_shortcut) in mappings_prefix.items():
@@ -124,38 +124,12 @@ with tf.Graph().as_default():
             if not has_shortcut and name_to == 'shortcut':
                 continue
             for suffix_from, suffix_to in mappings_suffix.items():
-                tf.assign(tf.get_default_graph().get_tensor_by_name("{}/{}/{}:0".format(prefix_from, name_from, suffix_from)),
-                          tf.get_default_graph().get_tensor_by_name("{}/{}/{}:0".format(prefix_to, name_to, suffix_to)))
+                # all variables in my network are are in same scopre so I can identify them easily
+                tf.assign(tf.get_default_graph().get_tensor_by_name("network/{}/{}/{}:0".format(prefix_to, name_to, suffix_to)),
+                          tf.get_default_graph().get_tensor_by_name("{}/{}/{}:0".format(prefix_from, name_from, suffix_from)))
 
-    tf.assign(tf.get_default_graph().get_tensor_by_name("resize1/conv2/weights:0"), b[3])
-    tf.assign(tf.get_default_graph().get_tensor_by_name("resize1/conv2/batch_norm/beta:0"), b[4])
-    tf.assign(tf.get_default_graph().get_tensor_by_name("resize1/conv2/batch_norm/gamma:0"), b[5])
-
-    tf.assign(tf.get_default_graph().get_tensor_by_name("resize1/conv3/weights:0"), b[6])
-    tf.assign(tf.get_default_graph().get_tensor_by_name("resize1/conv3/batch_norm/beta:0"), b[7])
-    tf.assign(tf.get_default_graph().get_tensor_by_name("resize1/conv3/batch_norm/gamma:0"), b[8])
-
-    tf.assign(tf.get_default_graph().get_tensor_by_name("resize1/conv4/weights:0"), b[9])
-    tf.assign(tf.get_default_graph().get_tensor_by_name("resize1/conv4/batch_norm/beta:0"), b[10])
-    tf.assign(tf.get_default_graph().get_tensor_by_name("resize1/conv4/batch_norm/gamma:0"), b[11])
-
-    tf.assign(tf.get_default_graph().get_tensor_by_name("resize1/conv5/weights:0"), b[12])
-    tf.assign(tf.get_default_graph().get_tensor_by_name("resize1/conv5/batch_norm/beta:0"), b[13])
-    tf.assign(tf.get_default_graph().get_tensor_by_name("resize1/conv5/batch_norm/gamma:0"), b[14])
-
-    tf.assign(tf.get_default_graph().get_tensor_by_name("resize1/conv2/weights:0"), b[3])
-    tf.assign(tf.get_default_graph().get_tensor_by_name("resize1/conv2/batch_norm/beta:0"), b[4])
-    tf.assign(tf.get_default_graph().get_tensor_by_name("resize1/conv2/batch_norm/gamma:0"), b[5])
-
-    tf.assign(tf.get_default_graph().get_tensor_by_name("resize1/conv3/weights:0"), b[6])
-    tf.assign(tf.get_default_graph().get_tensor_by_name("resize1/conv3/batch_norm/beta:0"), b[7])
-    tf.assign(tf.get_default_graph().get_tensor_by_name("resize1/conv3/batch_norm/gamma:0"), b[8])
-
-    tf.assign(tf.get_default_graph().get_tensor_by_name("resize1/conv4/weights:0"), b[9])
-    tf.assign(tf.get_default_graph().get_tensor_by_name("resize1/conv4/batch_norm/beta:0"), b[10])
-    tf.assign(tf.get_default_graph().get_tensor_by_name("resize1/conv4/batch_norm/gamma:0"), b[11])
-
-    tf.assign(tf.get_default_graph().get_tensor_by_name("resize1/conv5/weights:0"), b[12])
-    tf.assign(tf.get_default_graph().get_tensor_by_name("resize1/conv5/batch_norm/beta:0"), b[13])
-    tf.assign(tf.get_default_graph().get_tensor_by_name("resize1/conv5/batch_norm/gamma:0"), b[14])
-
+    print('everything assigned, running to apply these assignments')
+    network.sess.run(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='network'))     # so all weights are actually being assigned
+    print('tensors runs, going to save them')
+    new_saver = tf.train.Saver(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='network'))
+    new_saver.save(network.sess, 'init-weights', global_step=0)

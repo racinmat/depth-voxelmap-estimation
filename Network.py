@@ -114,66 +114,67 @@ class Network(object):
                        biases_initializer=tf.constant_initializer(0.1),
                        weights_regularizer=slim.l2_regularizer(CONV_WEIGHT_DECAY)
                        ):
-            conv1 = slim.conv2d(images, num_outputs=64, scope='conv1', kernel_size=7, stride=2, activation_fn=tf.nn.relu)
+            with tf.variable_scope('network') as scope:
+                conv1 = slim.conv2d(images, num_outputs=64, scope='conv1', kernel_size=7, stride=2, activation_fn=tf.nn.relu)
 
-            max1 = slim.max_pool2d(conv1, kernel_size=3, stride=2, scope='maxpool1')
+                max1 = slim.max_pool2d(conv1, kernel_size=3, stride=2, scope='maxpool1')
 
-            conv1 = self.resize_layer("resize1", max1, small_size=64, big_size=256)
-            print("conv1")
-            print(conv1)
+                conv1 = self.resize_layer("resize1", max1, small_size=64, big_size=256)
+                print("conv1")
+                print(conv1)
 
-            for i in range(2):
-                conv1 = self.non_resize_layer("resize2-" + str(i), conv1, small_size=64, big_size=256)
+                for i in range(2):
+                    conv1 = self.non_resize_layer("resize2-" + str(i), conv1, small_size=64, big_size=256)
 
-            conv1 = self.resize_layer("resize3", conv1, small_size=128, big_size=512, stride=2)
+                conv1 = self.resize_layer("resize3", conv1, small_size=128, big_size=512, stride=2)
 
-            l1concat = conv1
-            print("l1concat")
-            print(l1concat)
+                l1concat = conv1
+                print("l1concat")
+                print(l1concat)
 
-            for i in range(7):
-                conv1 = self.non_resize_layer("resize4-" + str(i), conv1, small_size=128, big_size=512)
+                for i in range(7):
+                    conv1 = self.non_resize_layer("resize4-" + str(i), conv1, small_size=128, big_size=512)
 
-            l2concat = conv1
-            print("l2concat")
-            print(l2concat)
+                l2concat = conv1
+                print("l2concat")
+                print(l2concat)
 
-            conv1 = self.resize_layer("resize5", conv1, small_size=256, big_size=1024, rate=2)
+                conv1 = self.resize_layer("resize5", conv1, small_size=256, big_size=1024, rate=2)
 
-            l3concat = conv1
-            print("l3concat")
-            print(l3concat)
+                l3concat = conv1
+                print("l3concat")
+                print(l3concat)
 
-            for i in range(35):
-                conv1 = self.non_resize_layer("resize6-" + str(i), conv1, small_size=256, big_size=1024, rate=2)
+                for i in range(35):
+                    conv1 = self.non_resize_layer("resize6-" + str(i), conv1, small_size=256, big_size=1024, rate=2)
 
-            l4concat = conv1
-            print("l4concat")
-            print(l4concat)
+                l4concat = conv1
+                print("l4concat")
+                print(l4concat)
 
-            conv1 = self.resize_layer("resize7", conv1, small_size=512, big_size=2048, rate=4)
+                conv1 = self.resize_layer("resize7", conv1, small_size=512, big_size=2048, rate=4)
 
-            l5concat = conv1
-            print("l5concat")
-            print(l5concat)
+                l5concat = conv1
+                print("l5concat")
+                print(l5concat)
 
-            for i in range(2):
-                conv1 = self.non_resize_layer("resize8-" + str(i), conv1, small_size=512, big_size=2048, rate=4)
+                for i in range(2):
+                    conv1 = self.non_resize_layer("resize8-" + str(i), conv1, small_size=512, big_size=2048, rate=4)
 
-            l6concat = conv1
-            print("l6concat")
-            print(l6concat)
+                l6concat = conv1
+                print("l6concat")
+                print(l6concat)
 
-            conv1 = tf.concat([l1concat, l2concat, l3concat, l4concat, l5concat, l6concat], 3)
+                conv1 = tf.concat([l1concat, l2concat, l3concat, l4concat, l5concat, l6concat], 3)
 
-            conv1 = tf.layers.dropout(conv1, .5)
+                conv1 = tf.layers.dropout(conv1, .5)
 
-            conv1 = slim.conv2d(conv1, num_outputs=200, scope='convFinal', kernel_size=3, stride=1, normalizer_fn=None,
-                                activation_fn=None)
+                conv1 = slim.conv2d(conv1, num_outputs=200, scope='convFinal', kernel_size=3, stride=1, normalizer_fn=None,
+                                    activation_fn=None)
 
-            conv1 = tf.layers.conv2d_transpose(conv1, 1, 8, strides=(4, 4), padding='SAME')
+                conv1 = tf.layers.conv2d_transpose(conv1, 1, 8, strides=(4, 4), padding='SAME')
 
-            return conv1
+                return conv1
 
     def loss(self, logits, depths, invalid_depths):
         H = dataset.TARGET_HEIGHT
