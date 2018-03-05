@@ -112,7 +112,7 @@ class Network(object):
         loss = self.loss(logits, depths, invalid_depths)
         train_op = op.train(loss, global_step, BATCH_SIZE)
         self.saver = tf.train.Saver()  # saver must be initialized after network is set up
-        return train_op
+        return loss, logits, train_op, images
 
     def inference(self, images):
         batch_norm_params = {
@@ -180,14 +180,15 @@ class Network(object):
                 print("l6concat")
                 print(l6concat)
 
-                conv1 = tf.concat([l1concat, l2concat, l3concat, l4concat, l5concat, l6concat], 3)
+                conv1 = tf.concat([l1concat, l2concat, l3concat, l4concat, l5concat, l6concat], axis=3)
 
-                conv1 = tf.layers.dropout(conv1, .5)
+                conv1 = tf.layers.dropout(conv1, rate=0.5)
 
-                conv1 = slim.conv2d(conv1, num_outputs=200, scope='convFinal', kernel_size=3, stride=1, normalizer_fn=None,
-                                    activation_fn=None)
+                conv1 = slim.conv2d(conv1, num_outputs=200, scope='convFinal', kernel_size=3, stride=1,
+                                    normalizer_fn=None, activation_fn=None)
 
-                conv1 = tf.layers.conv2d_transpose(conv1, 1, 8, strides=(4, 4), padding='SAME')
+                conv1 = slim.conv2d_transpose(conv1, num_outputs=200, kernel_size=8, stride=4,
+                                              normalizer_fn=None, activation_fn=None)
 
                 return conv1
 
@@ -216,7 +217,7 @@ class Network(object):
 
     def train(self):
         with tf.Graph().as_default():
-            train_op = self.prepare()
+            loss, logits, train_op, images = self.prepare()
 
             # Session
             with tf.Session(config=self.config) as self.sess:
