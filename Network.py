@@ -22,6 +22,7 @@ BN_DECAY = MOVING_AVERAGE_DECAY
 BN_EPSILON = 0.001
 CONV_WEIGHT_DECAY = 4e-5
 CONV_WEIGHT_STDDEV = 0.1
+OUTPUT_DIM = 200
 
 MAX_EPOCHS = int(1e7)
 LOG_DEVICE_PLACEMENT = False
@@ -40,6 +41,7 @@ class Network(object):
     def __init__(self):
         self.sess = None
         self.saver = None
+        self.x = None
 
         # GPU settings
         self.config = tf.ConfigProto(log_device_placement=LOG_DEVICE_PLACEMENT)
@@ -121,67 +123,73 @@ class Network(object):
                        weights_regularizer=slim.l2_regularizer(CONV_WEIGHT_DECAY)
                        ):
             with tf.variable_scope('network') as scope:
-                conv1 = slim.conv2d(images, num_outputs=64, scope='conv1', kernel_size=7, stride=2, activation_fn=tf.nn.relu)
+                self.x = tf.placeholder(tf.float32, shape=[None, dataset.IMAGE_HEIGHT, dataset.IMAGE_WIDTH, 3], name='x')
+                # y = tf.placeholder(tf.float32, shape=[None, OUTPUT_DIM], name='y')
 
-                max1 = slim.max_pool2d(conv1, kernel_size=3, stride=2, scope='maxpool1')
-
-                conv1 = self.resize_layer("resize1", max1, small_size=64, big_size=256)
+                conv = slim.conv2d(self.x, num_outputs=64, scope='conv1', kernel_size=7, stride=2,
+                                   activation_fn=tf.nn.relu)
                 print("conv1")
-                print(conv1)
+                print(conv)
+
+                max1 = slim.max_pool2d(conv, kernel_size=3, stride=2, scope='maxpool1')
+
+                conv = self.resize_layer("resize1", max1, small_size=64, big_size=256)
+                print("conv2")
+                print(conv)
 
                 for i in range(2):
-                    conv1 = self.non_resize_layer("resize2-" + str(i), conv1, small_size=64, big_size=256)
+                    conv = self.non_resize_layer("resize2-" + str(i), conv, small_size=64, big_size=256)
 
-                conv1 = self.resize_layer("resize3", conv1, small_size=128, big_size=512, stride=2)
+                conv = self.resize_layer("resize3", conv, small_size=128, big_size=512, stride=2)
 
-                l1concat = conv1
+                l1concat = conv
                 print("l1concat")
                 print(l1concat)
 
                 for i in range(7):
-                    conv1 = self.non_resize_layer("resize4-" + str(i), conv1, small_size=128, big_size=512)
+                    conv = self.non_resize_layer("resize4-" + str(i), conv, small_size=128, big_size=512)
 
-                l2concat = conv1
+                l2concat = conv
                 print("l2concat")
                 print(l2concat)
 
-                conv1 = self.resize_layer("resize5", conv1, small_size=256, big_size=1024, rate=2)
+                conv = self.resize_layer("resize5", conv, small_size=256, big_size=1024, rate=2)
 
-                l3concat = conv1
+                l3concat = conv
                 print("l3concat")
                 print(l3concat)
 
                 for i in range(35):
-                    conv1 = self.non_resize_layer("resize6-" + str(i), conv1, small_size=256, big_size=1024, rate=2)
+                    conv = self.non_resize_layer("resize6-" + str(i), conv, small_size=256, big_size=1024, rate=2)
 
-                l4concat = conv1
+                l4concat = conv
                 print("l4concat")
                 print(l4concat)
 
-                conv1 = self.resize_layer("resize7", conv1, small_size=512, big_size=2048, rate=4)
+                conv = self.resize_layer("resize7", conv, small_size=512, big_size=2048, rate=4)
 
-                l5concat = conv1
+                l5concat = conv
                 print("l5concat")
                 print(l5concat)
 
                 for i in range(2):
-                    conv1 = self.non_resize_layer("resize8-" + str(i), conv1, small_size=512, big_size=2048, rate=4)
+                    conv = self.non_resize_layer("resize8-" + str(i), conv, small_size=512, big_size=2048, rate=4)
 
-                l6concat = conv1
+                l6concat = conv
                 print("l6concat")
                 print(l6concat)
 
-                conv1 = tf.concat([l1concat, l2concat, l3concat, l4concat, l5concat, l6concat], axis=3)
+                conv = tf.concat([l1concat, l2concat, l3concat, l4concat, l5concat, l6concat], axis=3)
 
-                conv1 = tf.layers.dropout(conv1, rate=0.5)
+                conv = tf.layers.dropout(conv, rate=0.5)
 
-                conv1 = slim.conv2d(conv1, num_outputs=200, scope='convFinal', kernel_size=3, stride=1,
-                                    normalizer_fn=None, activation_fn=None)
+                conv = slim.conv2d(conv, num_outputs=OUTPUT_DIM, scope='convFinal', kernel_size=3, stride=1,
+                                   normalizer_fn=None, activation_fn=None)
 
-                conv1 = slim.conv2d_transpose(conv1, num_outputs=200, kernel_size=8, stride=4,
-                                              normalizer_fn=None, activation_fn=None)
+                conv = slim.conv2d_transpose(conv, num_outputs=OUTPUT_DIM, kernel_size=8, stride=4,
+                                             normalizer_fn=None, activation_fn=None)
 
-                return conv1
+                return conv
 
     def loss(self, logits, depths, invalid_depths):
         H = dataset.TARGET_HEIGHT
@@ -210,15 +218,16 @@ class Network(object):
         dataset = DataSet(BATCH_SIZE)
         global_step = tf.Variable(0, trainable=False)
         images, ground_truth_depths, invalid_depths = dataset.csv_inputs(TRAIN_FILE)
+        images_test, ground_truth_depths, invalid_depths = dataset.csv_inputs(TEST_FILE)
         estimated_depths = self.inference(images)
         loss = self.loss(estimated_depths, ground_truth_depths, invalid_depths)
         train_op = op.train(loss, global_step, BATCH_SIZE)
         self.saver = tf.train.Saver()  # saver must be initialized after network is set up
-        return loss, estimated_depths, train_op, images
+        return loss, estimated_depths, train_op, images, images_test
 
     def train(self):
         with tf.Graph().as_default():
-            loss, logits, train_op, images = self.prepare()
+            loss, estimated_depths, train_op, images, images_test = self.prepare()
 
             # Session
             with tf.Session(config=self.config) as self.sess:
@@ -238,20 +247,29 @@ class Network(object):
                 coord = tf.train.Coordinator()
                 threads = tf.train.start_queue_runners(sess=self.sess, coord=coord)
 
-                # test_logits_val = None
-                # test_images_val = None
-
                 index = 0
                 num_batches_per_epoch = int(float(train_operation.NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN) / BATCH_SIZE)
                 for epoch in range(MAX_EPOCHS):
                     for i in range(num_batches_per_epoch):
                         # sending images to sess.run so other batch is loaded
                         _, loss_value, logits_val, images_val, summary_str = self.sess.run(
-                            [train_op, loss, logits, images, summary])
+                            [train_op, loss, estimated_depths, images, summary],
+                            feed_dict={
+                                self.x: images,
+                            }
+                        )
                         writer.add_summary(summary_str, index)
                         if i % 10 == 0:
+                            test_loss_value, test_logits_val, test_images_val, test_summary_str = self.sess.run(
+                                [loss, estimated_depths, images, summary],
+                                feed_dict={
+                                    self.x: images_test,
+                                }
+                            )
                             print(
                                 "%s: %d[epoch]: %d[iteration]: train loss %f" % (datetime.now(), epoch, i, loss_value))
+                            print(
+                                "%s: %d[epoch]: %d[iteration]: test loss %f" % (datetime.now(), epoch, i, test_loss_value))
                             assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
                         if i % 500 == 0:
                             output_predict(logits_val, images_val,
