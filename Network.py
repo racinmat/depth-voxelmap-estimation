@@ -5,6 +5,7 @@ import numpy as np
 import tensorflow as tf
 
 import dataset
+import train_operation
 from dataset import DataSet, output_predict
 import train_operation as op
 import os
@@ -19,10 +20,10 @@ current_time = time.strftime("%Y-%m-%d--%H-%M-%S", time.gmtime())
 MOVING_AVERAGE_DECAY = 0.9997
 BN_DECAY = MOVING_AVERAGE_DECAY
 BN_EPSILON = 0.001
-CONV_WEIGHT_DECAY = 0.00004
+CONV_WEIGHT_DECAY = 4e-5
 CONV_WEIGHT_STDDEV = 0.1
 
-MAX_EPOCHS = 10000000
+MAX_EPOCHS = int(1e7)
 LOG_DEVICE_PLACEMENT = False
 BATCH_SIZE = 8
 TRAIN_FILE = "train.csv"
@@ -103,16 +104,6 @@ class Network(object):
         loader = tf.train.Saver(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='network'))
         loader.restore(self.sess, 'init-weights/resnet')
         print('weights initialized')
-
-    def prepare(self):
-        dataset = DataSet(BATCH_SIZE)
-        global_step = tf.Variable(0, trainable=False)
-        images, depths, invalid_depths = dataset.csv_inputs(TRAIN_FILE)
-        logits = self.inference(images)
-        loss = self.loss(logits, depths, invalid_depths)
-        train_op = op.train(loss, global_step, BATCH_SIZE)
-        self.saver = tf.train.Saver()  # saver must be initialized after network is set up
-        return loss, logits, train_op, images
 
     def inference(self, images):
         batch_norm_params = {
@@ -215,6 +206,16 @@ class Network(object):
         # tf.add_to_collection('losses', cost)
         # return tf.add_n(tf.get_collection('losses'), name='total_loss')
 
+    def prepare(self):
+        dataset = DataSet(BATCH_SIZE)
+        global_step = tf.Variable(0, trainable=False)
+        images, ground_truth_depths, invalid_depths = dataset.csv_inputs(TRAIN_FILE)
+        estimated_depths = self.inference(images)
+        loss = self.loss(estimated_depths, ground_truth_depths, invalid_depths)
+        train_op = op.train(loss, global_step, BATCH_SIZE)
+        self.saver = tf.train.Saver()  # saver must be initialized after network is set up
+        return loss, estimated_depths, train_op, images
+
     def train(self):
         with tf.Graph().as_default():
             loss, logits, train_op, images = self.prepare()
@@ -240,10 +241,11 @@ class Network(object):
                 # test_logits_val = None
                 # test_images_val = None
 
-                iterations = 1000
                 index = 0
+                num_batches_per_epoch = int(float(train_operation.NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN) / BATCH_SIZE)
                 for epoch in range(MAX_EPOCHS):
-                    for i in range(iterations):
+                    for i in range(num_batches_per_epoch):
+                        # sending images to sess.run so other batch is loaded
                         _, loss_value, logits_val, images_val, summary_str = self.sess.run(
                             [train_op, loss, logits, images, summary])
                         writer.add_summary(summary_str, index)

@@ -8,6 +8,8 @@ IMAGE_WIDTH = 320
 TARGET_HEIGHT = 120
 TARGET_WIDTH = 160
 
+CAPACITY = 1000  # should be relatively big compared to dataset, see https://stackoverflow.com/questions/43028683/whats-going-on-in-tf-train-shuffle-batch-and-tf-train-batch
+MIN_DEQUE_EXAMPLES = 500
 
 class DataSet:
     def __init__(self, batch_size):
@@ -21,24 +23,24 @@ class DataSet:
         # input
         jpg = tf.read_file(filename)
         image = tf.image.decode_jpeg(jpg, channels=3)
-        image = tf.cast(image, tf.float32)       
+        image = tf.cast(image, tf.float32)
         # target
         depth_png = tf.read_file(depth_filename)
         depth = tf.image.decode_png(depth_png, channels=1)
         depth = tf.cast(depth, tf.float32)
         depth = tf.div(depth, [255.0])
-        #depth = tf.cast(depth, tf.int64)
+        # depth = tf.cast(depth, tf.int64)
         # resize
         image = tf.image.resize_images(image, (IMAGE_HEIGHT, IMAGE_WIDTH))
         depth = tf.image.resize_images(depth, (TARGET_HEIGHT, TARGET_WIDTH))
         invalid_depth = tf.sign(depth)
         # generate batch
-        images, depths, invalid_depths = tf.train.batch(
+        images, depths, invalid_depths = tf.train.shuffle_batch(
             [image, depth, invalid_depth],
             batch_size=self.batch_size,
             num_threads=4,
-            capacity=50 + 3 * self.batch_size,
-        )
+            capacity=CAPACITY,
+            min_after_dequeue=MIN_DEQUE_EXAMPLES)
         return images, depths, invalid_depths
 
 
@@ -52,9 +54,9 @@ def output_predict(depths, images, output_dir):
         pilimg.save(image_name)
         depth = depth.transpose(2, 0, 1)
         if np.max(depth) != 0:
-            ra_depth = (depth/np.max(depth))*255.0
+            ra_depth = (depth / np.max(depth)) * 255.0
         else:
-            ra_depth = depth*255.0
+            ra_depth = depth * 255.0
         depth_pil = Image.fromarray(np.uint8(ra_depth[0]), mode="L")
         depth_name = "%s/%05d.png" % (output_dir, i)
         depth_pil.save(depth_name)
