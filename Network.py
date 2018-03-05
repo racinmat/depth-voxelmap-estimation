@@ -22,7 +22,6 @@ BN_DECAY = MOVING_AVERAGE_DECAY
 BN_EPSILON = 0.001
 CONV_WEIGHT_DECAY = 4e-5
 CONV_WEIGHT_STDDEV = 0.1
-OUTPUT_DIM = 200
 
 MAX_EPOCHS = int(1e7)
 LOG_DEVICE_PLACEMENT = False
@@ -42,6 +41,14 @@ class Network(object):
         self.sess = None
         self.saver = None
         self.x = None
+        self.y = None
+        self.y_invalid = None
+        self.images = None
+        self.images_test = None
+        self.depths = None
+        self.depths_test = None
+        self.invalid_depths = None
+        self.invalid_depths_test = None
 
         # GPU settings
         self.config = tf.ConfigProto(log_device_placement=LOG_DEVICE_PLACEMENT)
@@ -107,7 +114,7 @@ class Network(object):
         loader.restore(self.sess, 'init-weights/resnet')
         print('weights initialized')
 
-    def inference(self, images):
+    def inference(self):
         batch_norm_params = {
             'decay': BN_DECAY,  # also known as momentum, they are the same
             'updates_collections': None,
@@ -124,7 +131,6 @@ class Network(object):
                        ):
             with tf.variable_scope('network') as scope:
                 self.x = tf.placeholder(tf.float32, shape=[None, dataset.IMAGE_HEIGHT, dataset.IMAGE_WIDTH, 3], name='x')
-                # y = tf.placeholder(tf.float32, shape=[None, OUTPUT_DIM], name='y')
 
                 conv = slim.conv2d(self.x, num_outputs=64, scope='conv1', kernel_size=7, stride=2,
                                    activation_fn=tf.nn.relu)
@@ -183,24 +189,27 @@ class Network(object):
 
                 conv = tf.layers.dropout(conv, rate=0.5)
 
-                conv = slim.conv2d(conv, num_outputs=OUTPUT_DIM, scope='convFinal', kernel_size=3, stride=1,
+                conv = slim.conv2d(conv, num_outputs=dataset.DEPTH_DIM, scope='convFinal', kernel_size=3, stride=1,
                                    normalizer_fn=None, activation_fn=None)
 
-                conv = slim.conv2d_transpose(conv, num_outputs=OUTPUT_DIM, kernel_size=8, stride=4,
+                conv = slim.conv2d_transpose(conv, num_outputs=dataset.DEPTH_DIM, kernel_size=8, stride=4,
                                              normalizer_fn=None, activation_fn=None)
 
                 return conv
 
-    def loss(self, logits, depths, invalid_depths):
+    def loss(self, logits):
         H = dataset.TARGET_HEIGHT
         W = dataset.TARGET_WIDTH
+        self.y = tf.placeholder(tf.float32, shape=[BATCH_SIZE, H, W, dataset.DEPTH_DIM], name='y')
+        self.y_invalid = tf.placeholder(tf.float32, shape=[BATCH_SIZE, H, W, dataset.DEPTH_DIM], name='y_invalid')
+        depths = self.y
         logits_flat = tf.reshape(logits, [-1, H * W])
         depths_flat = tf.reshape(depths, [-1, H * W])
         print("logits_flat")
         print(logits_flat)
         print("depths_flat")
         print(depths_flat)
-        invalid_depths_flat = tf.reshape(invalid_depths, [-1, 120 * 160])
+        invalid_depths_flat = tf.reshape(self.y_invalid, [-1, 120 * 160])
 
         predict = tf.multiply(logits_flat, invalid_depths_flat)
         target = tf.multiply(depths_flat, invalid_depths_flat)
@@ -215,19 +224,19 @@ class Network(object):
         # return tf.add_n(tf.get_collection('losses'), name='total_loss')
 
     def prepare(self):
-        dataset = DataSet(BATCH_SIZE)
+        data_set = DataSet(BATCH_SIZE)
         global_step = tf.Variable(0, trainable=False)
-        images, ground_truth_depths, invalid_depths = dataset.csv_inputs(TRAIN_FILE)
-        images_test, ground_truth_depths, invalid_depths = dataset.csv_inputs(TEST_FILE)
-        estimated_depths = self.inference(images)
-        loss = self.loss(estimated_depths, ground_truth_depths, invalid_depths)
+        self.images, self.depths, self.invalid_depths = data_set.csv_inputs(TRAIN_FILE)
+        self.images_test, self.depths_test, self.invalid_depths_test = data_set.csv_inputs(TEST_FILE)
+        estimated_depths = self.inference()
+        loss = self.loss(estimated_depths)
         train_op = op.train(loss, global_step, BATCH_SIZE)
         self.saver = tf.train.Saver()  # saver must be initialized after network is set up
-        return loss, estimated_depths, train_op, images, images_test
+        return loss, estimated_depths, train_op
 
     def train(self):
         with tf.Graph().as_default():
-            loss, estimated_depths, train_op, images, images_test = self.prepare()
+            loss, estimated_depths, train_op = self.prepare()
 
             # Session
             with tf.Session(config=self.config) as self.sess:
@@ -252,18 +261,25 @@ class Network(object):
                 for epoch in range(MAX_EPOCHS):
                     for i in range(num_batches_per_epoch):
                         # sending images to sess.run so other batch is loaded
+                        images, depths, invalid_depths = self.sess.run([self.images, self.depths, self.invalid_depths])
                         _, loss_value, logits_val, images_val, summary_str = self.sess.run(
-                            [train_op, loss, estimated_depths, images, summary],
+                            [train_op, loss, estimated_depths, self.images, summary],
                             feed_dict={
                                 self.x: images,
+                                self.y: depths,
+                                self.y_invalid: invalid_depths,
                             }
                         )
                         writer.add_summary(summary_str, index)
                         if i % 10 == 0:
+                            images, depths, invalid_depths = self.sess.run(
+                                [self.images_test, self.depths_test, self.invalid_depths_test])
                             test_loss_value, test_logits_val, test_images_val, test_summary_str = self.sess.run(
-                                [loss, estimated_depths, images, summary],
+                                [loss, estimated_depths, self.images_test, summary],
                                 feed_dict={
-                                    self.x: images_test,
+                                    self.x: images,
+                                    self.y: depths,
+                                    self.y_invalid: invalid_depths,
                                 }
                             )
                             print(
