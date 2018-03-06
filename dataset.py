@@ -50,11 +50,23 @@ class DataSet:
         d_min = tf.reduce_min(depth)
         d_max = tf.reduce_max(depth)
         q = (tf.log(d_max) - tf.log(d_min)) / (DEPTH_DIM - 1)
-        bin_idx = tf.round((tf.log(depth) - tf.log(d_min)) / q)
-        mask = tf.ones((TARGET_HEIGHT, IMAGE_WIDTH, DEPTH_DIM))
-        indices = tf.constant(np.array(range(DEPTH_DIM)))
-        mask = tf.round(mask * tf.log(d_min) + tf.exp(q * indices)) # values corresponding to this bin, for comparison
-        depth_discretized = tf.cast(tf.equal(mask, depth), tf.int8)
+        ones_vec = tf.ones((TARGET_HEIGHT, TARGET_WIDTH, DEPTH_DIM))
+        sth = tf.expand_dims(tf.constant(np.array(range(DEPTH_DIM))), 0)
+        sth = tf.expand_dims(sth, 0)
+        indices_vec = tf.tile(sth, [TARGET_HEIGHT, TARGET_WIDTH, 1])
+        indices_vec_lower = indices_vec - 1
+        # indices = ones_vec * indices_vec
+        # indices = ones_vec * indices_vec
+        # bin value = bin_idx * q + log(d_min)
+        d_min_tensor = ones_vec * tf.log(d_min)
+        bin_value = q * tf.cast(indices_vec, tf.float32)
+        bin_value_lower = q * tf.cast(indices_vec_lower, tf.float32)
+        logged = d_min_tensor + bin_value
+        logged_lower = d_min_tensor + bin_value_lower
+        mask = tf.exp(logged)  # values corresponding to this bin, for comparison
+        mask_lower = tf.exp(logged_lower)  # values corresponding to this bin, for comparison
+        depth_discretized = tf.cast(tf.less_equal(depth, mask), tf.int8) * tf.cast(tf.greater(depth, mask_lower),
+                                                                                   tf.int8)
         return depth_discretized
 
 
