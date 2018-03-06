@@ -3,6 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 
+from dataset import DataSet
+
 
 def output_predict(depths, images, depths_discretized, mask, mask_lower, output_dir):
     print("output predict into %s" % output_dir)
@@ -43,6 +45,9 @@ def output_predict(depths, images, depths_discretized, mask, mask_lower, output_
 
 
 if __name__ == '__main__':
+    ds = DataSet(8)
+    ds.load_params('train.csv')
+
     d = list(range(1, 100))
     d_min = np.min(d)
     d_max = 20

@@ -15,6 +15,26 @@ MIN_DEQUE_EXAMPLES = 500 # should be relatively big compared to dataset, see htt
 class DataSet:
     def __init__(self, batch_size):
         self.batch_size = batch_size
+        self.q = None
+        self.d_min = None
+        self.d_max = None
+
+    def load_params(self, train_file_path):
+        filenames = np.recfromcsv(train_file_path, delimiter=',', dtype=None, encoding='utf-8')
+        depths = np.zeros((TARGET_HEIGHT, TARGET_WIDTH, len(filenames)))
+        for i, (rgb_name, depth_name) in enumerate(filenames):
+            img = Image.open(depth_name)
+            img.load()
+            img = img.resize((TARGET_WIDTH, TARGET_HEIGHT), Image.ANTIALIAS)
+            data = np.asarray(img, dtype="int32")
+            depths[:, :, i] = data
+
+        d_min = np.min(depths)
+        d_max = np.max(depths)
+        q = (np.log(d_max) - np.log(d_min)) / (DEPTH_DIM - 1)
+        self.d_min = d_min
+        self.q = q
+
 
     def csv_inputs(self, csv_file_path):
         filename_queue = tf.train.string_input_producer([csv_file_path], shuffle=True)
@@ -47,9 +67,11 @@ class DataSet:
         return images, depths, depth_bins, invalid_depths
 
     def discretize_depth(self, depth):
-        d_min = tf.reduce_min(depth)
-        d_max = tf.reduce_max(depth)
-        q = (tf.log(d_max) - tf.log(d_min)) / (DEPTH_DIM - 1)
+        # d_min = tf.reduce_min(depth)
+        # d_max = tf.reduce_max(depth)
+        # q = (tf.log(d_max) - tf.log(d_min)) / (DEPTH_DIM - 1)
+        d_min = self.d_min
+        q = self.q
         ones_vec = tf.ones((TARGET_HEIGHT, TARGET_WIDTH, DEPTH_DIM))
         sth = tf.expand_dims(tf.constant(np.array(range(DEPTH_DIM))), 0)
         sth = tf.expand_dims(sth, 0)
@@ -69,20 +91,26 @@ class DataSet:
                                                                                    tf.int8)
         return depth_discretized
 
+    def discretized_to_depth(self, depth_bins):
+        weights = np.array(range(DEPTH_DIM)) * self.q + np.log(self.d_min)
+        mask = np.tile(weights, (TARGET_HEIGHT, TARGET_WIDTH, 1))
+        depth = np.exp(np.multiply(mask, depth_bins))
+        return depth
 
-def output_predict(depths, images, output_dir):
-    print("output predict into %s" % output_dir)
-    if not gfile.Exists(output_dir):
-        gfile.MakeDirs(output_dir)
-    for i, (image, depth) in enumerate(zip(images, depths)):
-        pilimg = Image.fromarray(np.uint8(image))
-        image_name = "%s/%05d_org.png" % (output_dir, i)
-        pilimg.save(image_name)
-        depth = depth.transpose(2, 0, 1)
-        if np.max(depth) != 0:
-            ra_depth = (depth / np.max(depth)) * 255.0
-        else:
-            ra_depth = depth * 255.0
-        depth_pil = Image.fromarray(np.uint8(ra_depth[0]), mode="L")
-        depth_name = "%s/%05d.png" % (output_dir, i)
-        depth_pil.save(depth_name)
+    def output_predict(self, depths, images, output_dir):
+        print("output predict into %s" % output_dir)
+        if not gfile.Exists(output_dir):
+            gfile.MakeDirs(output_dir)
+        for i, (image, depth) in enumerate(zip(images, depths)):
+            pilimg = Image.fromarray(np.uint8(image))
+            image_name = "%s/%05d_org.png" % (output_dir, i)
+            pilimg.save(image_name)
+            depth = depth.transpose(2, 0, 1)
+            depth = self.discretize_depth(depth)
+            if np.max(depth) != 0:
+                ra_depth = (depth / np.max(depth)) * 255.0
+            else:
+                ra_depth = depth * 255.0
+            depth_pil = Image.fromarray(np.uint8(ra_depth[0]), mode="L")
+            depth_name = "%s/%05d.png" % (output_dir, i)
+            depth_pil.save(depth_name)
