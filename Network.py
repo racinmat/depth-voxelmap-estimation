@@ -262,8 +262,8 @@ class Network(object):
                     for i in range(num_batches_per_epoch):
                         # sending images to sess.run so other batch is loaded
                         images, depths, invalid_depths = self.sess.run([self.images, self.depths, self.invalid_depths])
-                        _, loss_value, logits_val, images_val, summary_str = self.sess.run(
-                            [train_op, loss, estimated_depths, self.images, summary],
+                        _, loss_value, logits_val, summary_str = self.sess.run(
+                            [train_op, loss, estimated_depths, summary],
                             feed_dict={
                                 self.x: images,
                                 self.y: depths,
@@ -274,8 +274,8 @@ class Network(object):
                         if i % 10 == 0:
                             images, depths, invalid_depths = self.sess.run(
                                 [self.images_test, self.depths_test, self.invalid_depths_test])
-                            test_loss_value, test_logits_val, test_images_val, test_summary_str = self.sess.run(
-                                [loss, estimated_depths, self.images_test, summary],
+                            test_loss_value, test_logits_val, test_summary_str = self.sess.run(
+                                [loss, estimated_depths, summary],
                                 feed_dict={
                                     self.x: images,
                                     self.y: depths,
@@ -288,7 +288,7 @@ class Network(object):
                                 "%s: %d[epoch]: %d[iteration]: test loss %f" % (datetime.now(), epoch, i, test_loss_value))
                             assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
                         if i % 500 == 0:
-                            output_predict(logits_val, images_val,
+                            output_predict(logits_val, images,
                                            os.path.join(PREDICT_DIR, "iter_%05d_%05d" % (epoch, i)))
                             self.save_model(self.sess, index)
 
