@@ -312,4 +312,5 @@ class Network(object):
                 writer.close()
 
     def save_model(self, sess, counter):
-        self.saver.save(sess, CHECKPOINT_DIR, global_step=counter)
+        self.saver.save(sess, os.path.join(CHECKPOINT_DIR, 'model'), global_step=counter)   # because if there is no folder specified, it is used only as a prefix. Only in folder/prefix combination it puts each run into separate folder
+

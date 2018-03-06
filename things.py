@@ -6,12 +6,20 @@ from PIL import Image
 from dataset import DataSet
 
 
-def output_predict(depths, images, depths_discretized, mask, mask_lower, output_dir):
+def discretized_to_depth(depth_bins, batch_size, q, d_min):
+    weights = np.array(range(DEPTH_DIM)) * q + np.log(d_min)
+    mask = np.tile(weights, (batch_size, TARGET_HEIGHT, TARGET_WIDTH, 1))
+    depth = np.exp(np.sum(np.multiply(mask, depth_bins), axis=3))
+    return depth
+
+
+def output_predict(depths, images, depths_discretized, mask, mask_lower, depths_reconstructed, output_dir):
     print("output predict into %s" % output_dir)
     if not tf.gfile.Exists(output_dir):
         tf.gfile.MakeDirs(output_dir)
     for i, _ in enumerate(images):
-        image, depth, depth_discretized, = images[i], depths[i], depths_discretized[i]
+        image, depth, depth_discretized, depth_reconstructed = images[i], depths[i], depths_discretized[i], \
+                                                               depths_reconstructed[i]
 
         pilimg = Image.fromarray(np.uint8(image))
         image_name = "%s/%03d_org.png" % (output_dir, i)
@@ -42,6 +50,15 @@ def output_predict(depths, images, depths_discretized, mask, mask_lower, output_
         #     depth_discr_pil = Image.fromarray(np.uint8(ra_depth), mode="L")
         #     depth_discr_name = "%s/%03d_%03d_discr_ml.png" % (output_dir, i, j)
         #     depth_discr_pil.save(depth_discr_name)
+
+        depth = depth_reconstructed
+        if np.max(depth) != 0:
+            ra_depth = (depth / np.max(depth)) * 255.0
+        else:
+            ra_depth = depth * 255.0
+        depth_pil = Image.fromarray(np.uint8(ra_depth), mode="L")
+        depth_name = "%s/%03d_reconstructed.png" % (output_dir, i)
+        depth_pil.save(depth_name)
 
 
 if __name__ == '__main__':
@@ -81,7 +98,7 @@ if __name__ == '__main__':
             IMAGE_WIDTH = 320
             TARGET_HEIGHT = 120
             TARGET_WIDTH = 160
-            DEPTH_DIM = 100
+            DEPTH_DIM = 10
 
             filename_queue = tf.train.string_input_producer(['train.csv'], shuffle=True)
             reader = tf.TextLineReader()
@@ -113,7 +130,8 @@ if __name__ == '__main__':
             # indices = ones_vec * indices_vec
             # indices = ones_vec * indices_vec
             # bin value = bin_idx * q + log(d_min)
-            d_min_tensor = ones_vec * tf.log(d_min)
+            d_min_logged = tf.log(d_min)
+            d_min_tensor = ones_vec * d_min_logged
             bin_value = q * tf.cast(indices_vec, tf.float32)
             bin_value_lower = q * tf.cast(indices_vec_lower, tf.float32)
             logged = d_min_tensor + bin_value
@@ -124,10 +142,12 @@ if __name__ == '__main__':
                                                                                        tf.int8)
 
             invalid_depth = tf.sign(depth)
+
+            batch_size=8
             # generate batch
             images, depths, depths_discretized, invalid_depths = tf.train.shuffle_batch(
                 [image, depth, depth_discretized, invalid_depth],
-                batch_size=8,
+                batch_size=batch_size,
                 num_threads=4,
                 capacity=40,
                 min_after_dequeue=20)
@@ -135,11 +155,15 @@ if __name__ == '__main__':
             coord = tf.train.Coordinator()
             threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
-            images_val, depths_val, depths_discretized_val, invalid_depths_val, masks_val, masks_lower_val, d_min_val, logged_val = sess.run(
-                [images, depths, depths_discretized, invalid_depths, mask, mask_lower, d_min_tensor, logged])
+            images_val, depths_val, depths_discretized_val, invalid_depths_val, masks_val, masks_lower_val, \
+            d_min_tensor_val, d_min_val, logged_val, q_val = sess.run(
+                [images, depths, depths_discretized, invalid_depths, mask, mask_lower, d_min_tensor, d_min, logged, q])
             sess.run(images)
 
-            output_predict(depths_val, images_val, depths_discretized_val, masks_val, masks_lower_val, 'kunda')
+            depth_reconstructed = discretized_to_depth(depths_discretized_val, batch_size, q_val, d_min_val)
+
+            output_predict(depths_val, images_val, depths_discretized_val, masks_val, masks_lower_val,
+                           depth_reconstructed, 'kunda')
 
             coord.request_stop()
             coord.join(threads)
@@ -155,7 +179,7 @@ if __name__ == '__main__':
             axarr[1, 1].set_title('depths_discretized_val')
             axarr[1, 1].imshow(depths_discretized_val[0, :, :, layer])
             axarr[0, 2].set_title('d_min_val')
-            axarr[0, 2].imshow(d_min_val[:, :, layer])
+            axarr[0, 2].imshow(d_min_tensor_val[:, :, layer])
             axarr[1, 2].set_title('logged_val')
             axarr[1, 2].imshow(logged_val[:, :, layer])
             plt.show()

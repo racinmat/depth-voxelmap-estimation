@@ -94,7 +94,7 @@ class DataSet:
     def discretized_to_depth(self, depth_bins):
         weights = np.array(range(DEPTH_DIM)) * self.q + np.log(self.d_min)
         mask = np.tile(weights, (TARGET_HEIGHT, TARGET_WIDTH, 1))
-        depth = np.exp(np.multiply(mask, depth_bins))
+        depth = np.exp(np.sum(np.multiply(mask, depth_bins), axis=2))
         return depth
 
     def output_predict(self, depths, images, output_dir):
@@ -105,12 +105,12 @@ class DataSet:
             pilimg = Image.fromarray(np.uint8(image))
             image_name = "%s/%05d_org.png" % (output_dir, i)
             pilimg.save(image_name)
-            depth = depth.transpose(2, 0, 1)
+            # depth = depth.transpose(2, 0, 1)
             depth = self.discretized_to_depth(depth)
             if np.max(depth) != 0:
                 ra_depth = (depth / np.max(depth)) * 255.0
             else:
                 ra_depth = depth * 255.0
-            depth_pil = Image.fromarray(np.uint8(ra_depth[0]), mode="L")
+            depth_pil = Image.fromarray(np.uint8(ra_depth), mode="L")
             depth_name = "%s/%05d.png" % (output_dir, i)
             depth_pil.save(depth_name)
