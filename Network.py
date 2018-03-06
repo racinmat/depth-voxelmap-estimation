@@ -6,7 +6,7 @@ import tensorflow as tf
 
 import dataset
 import train_operation
-from dataset import DataSet, output_predict
+from dataset import DataSet
 import train_operation as op
 import os
 import time

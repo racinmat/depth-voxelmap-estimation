@@ -20,7 +20,7 @@ class DataSet:
         self.d_max = None
 
     def load_params(self, train_file_path):
-        filenames = np.recfromcsv(train_file_path, delimiter=',', dtype=None, encoding='utf-8')
+        filenames = np.recfromcsv(train_file_path, delimiter=',', dtype=None)
         depths = np.zeros((TARGET_HEIGHT, TARGET_WIDTH, len(filenames)))
         for i, (rgb_name, depth_name) in enumerate(filenames):
             img = Image.open(depth_name)
@@ -70,8 +70,8 @@ class DataSet:
         # d_min = tf.reduce_min(depth)
         # d_max = tf.reduce_max(depth)
         # q = (tf.log(d_max) - tf.log(d_min)) / (DEPTH_DIM - 1)
-        d_min = self.d_min
-        q = self.q
+        d_min = tf.constant(self.d_min, dtype=tf.float32)
+        q = tf.constant(self.q, dtype=tf.float32)
         ones_vec = tf.ones((TARGET_HEIGHT, TARGET_WIDTH, DEPTH_DIM))
         sth = tf.expand_dims(tf.constant(np.array(range(DEPTH_DIM))), 0)
         sth = tf.expand_dims(sth, 0)
@@ -106,7 +106,7 @@ class DataSet:
             image_name = "%s/%05d_org.png" % (output_dir, i)
             pilimg.save(image_name)
             depth = depth.transpose(2, 0, 1)
-            depth = self.discretize_depth(depth)
+            depth = self.discretized_to_depth(depth)
             if np.max(depth) != 0:
                 ra_depth = (depth / np.max(depth)) * 255.0
             else:

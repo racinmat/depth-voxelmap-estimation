@@ -104,7 +104,7 @@ if __name__ == '__main__':
             d_min = tf.reduce_min(depth)
             d_max = tf.reduce_max(depth)
             q = (tf.log(d_max) - tf.log(d_min)) / (DEPTH_DIM - 1)
-            bin_idx = tf.round((tf.log(depth) - tf.log(d_min)) / q)
+            # bin_idx = tf.round((tf.log(depth) - tf.log(d_min)) / q)
             ones_vec = tf.ones((TARGET_HEIGHT, TARGET_WIDTH, DEPTH_DIM))
             sth = tf.expand_dims(tf.constant(np.array(range(DEPTH_DIM))), 0)
             sth = tf.expand_dims(sth, 0)
