@@ -49,6 +49,8 @@ class Network(object):
         self.depths_test = None
         self.invalid_depths = None
         self.invalid_depths_test = None
+        self.depth_bins = None
+        self.depth_bins_test = None
 
         # GPU settings
         self.config = tf.ConfigProto(log_device_placement=LOG_DEVICE_PLACEMENT)
@@ -200,34 +202,34 @@ class Network(object):
     def loss(self, logits):
         H = dataset.TARGET_HEIGHT
         W = dataset.TARGET_WIDTH
-        self.y = tf.placeholder(tf.float32, shape=[BATCH_SIZE, H, W, dataset.DEPTH_DIM], name='y')
-        self.y_invalid = tf.placeholder(tf.float32, shape=[BATCH_SIZE, H, W, dataset.DEPTH_DIM], name='y_invalid')
+        self.y = tf.placeholder(tf.float32, shape=[None, H, W, dataset.DEPTH_DIM], name='y')
+        self.y_invalid = tf.placeholder(tf.float32, shape=[None, H, W, 1], name='y_invalid')
         depths = self.y
-        logits_flat = tf.reshape(logits, [-1, H * W])
-        depths_flat = tf.reshape(depths, [-1, H * W])
+        logits_flat = tf.reshape(logits, [-1, H * W * dataset.DEPTH_DIM])
+        depths_flat = tf.reshape(depths, [-1, H * W * dataset.DEPTH_DIM])
         print("logits_flat")
         print(logits_flat)
         print("depths_flat")
         print(depths_flat)
-        invalid_depths_flat = tf.reshape(self.y_invalid, [-1, 120 * 160])
+        invalid_inflated = self.y_invalid   # this shoudl be just temporary until I figure out what invalid depths are
+        invalid_inflated = tf.tile(invalid_inflated, [1, 1, 1, dataset.DEPTH_DIM])
+        invalid_depths_flat = tf.reshape(invalid_inflated, [-1, H * W * dataset.DEPTH_DIM])
 
         predict = tf.multiply(logits_flat, invalid_depths_flat)
         target = tf.multiply(depths_flat, invalid_depths_flat)
-        d = tf.subtract(predict, target)
+        d = predict - target
         square_d = tf.square(d)
         sum_square_d = tf.reduce_sum(square_d, 1)
         sum_d = tf.reduce_sum(d, 1)
         sqare_sum_d = tf.square(sum_d)
         cost = tf.reduce_mean(sum_square_d / (H * W) - 0.5 * sqare_sum_d / np.math.pow(H * W, 2))
         return cost
-        # tf.add_to_collection('losses', cost)
-        # return tf.add_n(tf.get_collection('losses'), name='total_loss')
 
     def prepare(self):
         data_set = DataSet(BATCH_SIZE)
         global_step = tf.Variable(0, trainable=False)
-        self.images, self.depths, self.invalid_depths = data_set.csv_inputs(TRAIN_FILE)
-        self.images_test, self.depths_test, self.invalid_depths_test = data_set.csv_inputs(TEST_FILE)
+        self.images, self.depths, self.depth_bins, self.invalid_depths = data_set.csv_inputs(TRAIN_FILE)
+        self.images_test, self.depths_test, self.depth_bins_test, self.invalid_depths_test = data_set.csv_inputs(TEST_FILE)
         estimated_depths = self.inference()
         loss = self.loss(estimated_depths)
         train_op = op.train(loss, global_step, BATCH_SIZE)
@@ -261,7 +263,7 @@ class Network(object):
                 for epoch in range(MAX_EPOCHS):
                     for i in range(num_batches_per_epoch):
                         # sending images to sess.run so other batch is loaded
-                        images, depths, invalid_depths = self.sess.run([self.images, self.depths, self.invalid_depths])
+                        images, depths, invalid_depths = self.sess.run([self.images, self.depth_bins, self.invalid_depths])
                         _, loss_value, logits_val, summary_str = self.sess.run(
                             [train_op, loss, estimated_depths, summary],
                             feed_dict={
@@ -273,7 +275,7 @@ class Network(object):
                         writer.add_summary(summary_str, index)
                         if i % 10 == 0:
                             images, depths, invalid_depths = self.sess.run(
-                                [self.images_test, self.depths_test, self.invalid_depths_test])
+                                [self.images_test, self.depth_bins_test, self.invalid_depths_test])
                             test_loss_value, test_logits_val, test_summary_str = self.sess.run(
                                 [loss, estimated_depths, summary],
                                 feed_dict={

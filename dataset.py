@@ -34,17 +34,17 @@ class DataSet:
         # resize
         image = tf.image.resize_images(image, (IMAGE_HEIGHT, IMAGE_WIDTH))
         depth = tf.image.resize_images(depth, (TARGET_HEIGHT, TARGET_WIDTH))
-        # depth_bins = tf.image.resize_images(depth, (TARGET_HEIGHT, TARGET_WIDTH, DEPTH_DIM))
+        depth_bins = self.discretize_depth(depth)
 
         invalid_depth = tf.sign(depth)
         # generate batch
-        images, depths, invalid_depths = tf.train.shuffle_batch(
-            [image, depth, invalid_depth],
+        images, depths, depth_bins, invalid_depths = tf.train.shuffle_batch(
+            [image, depth, depth_bins, invalid_depth],
             batch_size=self.batch_size,
             num_threads=4,
             capacity=MIN_DEQUE_EXAMPLES + 5 * self.batch_size,
             min_after_dequeue=MIN_DEQUE_EXAMPLES)
-        return images, depths, invalid_depths
+        return images, depths, depth_bins, invalid_depths
 
     def discretize_depth(self, depth):
         d_min = tf.reduce_min(depth)
