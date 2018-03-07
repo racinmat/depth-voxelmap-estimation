@@ -216,11 +216,11 @@ class Network(object):
 
     def bins_to_depth(self, depth_bins):
         weights = np.append(np.array(range(dataset.DEPTH_DIM)), np.inf) * dataset.Q + np.log(dataset.D_MIN)
-        sth = tf.expand_dims(tf.constant(weights), 0)
+        sth = tf.expand_dims(tf.constant(weights, dtype=tf.float32), 0)
         sth = tf.expand_dims(sth, 0)
         sth = tf.expand_dims(sth, 0)
         mask = tf.tile(sth, [BATCH_SIZE, dataset.TARGET_HEIGHT, dataset.TARGET_WIDTH, 1])
-        depth = tf.exp(tf.reduce_sum(tf.multiply(mask, depth_bins), axis=2))
+        depth = tf.exp(tf.reduce_sum(tf.multiply(mask, depth_bins), axis=3))
         return depth
 
     def prepare(self):
