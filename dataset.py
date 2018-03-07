@@ -7,17 +7,19 @@ IMAGE_HEIGHT = 240
 IMAGE_WIDTH = 320
 TARGET_HEIGHT = 120
 TARGET_WIDTH = 160
+
 DEPTH_DIM = 200
 
-MIN_DEQUE_EXAMPLES = 500 # should be relatively big compared to dataset, see https://stackoverflow.com/questions/43028683/whats-going-on-in-tf-train-shuffle-batch-and-tf-train-batch
+D_MIN = 0.5
+D_MAX = 50
+Q = (np.log(D_MAX) - np.log(D_MIN)) / (DEPTH_DIM - 1)
+
+MIN_DEQUE_EXAMPLES = 500  # should be relatively big compared to dataset, see https://stackoverflow.com/questions/43028683/whats-going-on-in-tf-train-shuffle-batch-and-tf-train-batch
 
 
 class DataSet:
     def __init__(self, batch_size):
         self.batch_size = batch_size
-        self.q = None
-        self.d_min = None
-        self.d_max = None
 
     def load_params(self, train_file_path):
         filenames = np.recfromcsv(train_file_path, delimiter=',', dtype=None)
@@ -28,13 +30,6 @@ class DataSet:
             img = img.resize((TARGET_WIDTH, TARGET_HEIGHT), Image.ANTIALIAS)
             data = np.asarray(img, dtype="int32")
             depths[:, :, i] = data
-
-        d_min = np.min(depths)
-        d_max = np.max(depths)
-        q = (np.log(d_max) - np.log(d_min)) / (DEPTH_DIM - 1)
-        self.d_min = d_min
-        self.q = q
-
 
     def csv_inputs(self, csv_file_path):
         filename_queue = tf.train.string_input_producer([csv_file_path], shuffle=True)
@@ -70,8 +65,8 @@ class DataSet:
         # d_min = tf.reduce_min(depth)
         # d_max = tf.reduce_max(depth)
         # q = (tf.log(d_max) - tf.log(d_min)) / (DEPTH_DIM - 1)
-        d_min = tf.constant(self.d_min, dtype=tf.float32)
-        q = tf.constant(self.q, dtype=tf.float32)
+        d_min = tf.constant(D_MIN, dtype=tf.float32)
+        q = tf.constant(Q, dtype=tf.float32)
         ones_vec = tf.ones((TARGET_HEIGHT, TARGET_WIDTH, DEPTH_DIM))
         sth = tf.expand_dims(tf.constant(np.array(range(DEPTH_DIM))), 0)
         sth = tf.expand_dims(sth, 0)
@@ -92,7 +87,7 @@ class DataSet:
         return depth_discretized
 
     def discretized_to_depth(self, depth_bins):
-        weights = np.array(range(DEPTH_DIM)) * self.q + np.log(self.d_min)
+        weights = np.array(range(DEPTH_DIM)) * Q + np.log(D_MIN)
         mask = np.tile(weights, (TARGET_HEIGHT, TARGET_WIDTH, 1))
         depth = np.exp(np.sum(np.multiply(mask, depth_bins), axis=2))
         return depth
@@ -106,7 +101,7 @@ class DataSet:
             image_name = "%s/%05d_org.png" % (output_dir, i)
             pilimg.save(image_name)
             # depth = depth.transpose(2, 0, 1)
-            depth = self.discretized_to_depth(depth)
+            # depth = self.discretized_to_depth(depth)
             if np.max(depth) != 0:
                 ra_depth = (depth / np.max(depth)) * 255.0
             else:
