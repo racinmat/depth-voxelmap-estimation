@@ -209,7 +209,7 @@ class Network(object):
 
         print('labels shape:', self.y.shape)
         print('logits shape:', logits.shape)
-        cost = tf.nn.softmax_cross_entropy_with_logits(labels=self.y, logits=logits)
+        cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.y, logits=logits))
         tf.summary.scalar("cost", cost)
 
         return cost
@@ -221,6 +221,7 @@ class Network(object):
         sth = tf.expand_dims(sth, 0)
         mask = tf.tile(sth, [BATCH_SIZE, dataset.TARGET_HEIGHT, dataset.TARGET_WIDTH, 1])
         depth = tf.exp(tf.reduce_sum(tf.multiply(mask, depth_bins), axis=3))
+        depth = tf.expand_dims(depth, 3)
         return depth
 
     def prepare(self):
