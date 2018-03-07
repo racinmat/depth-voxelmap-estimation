@@ -62,13 +62,10 @@ class DataSet:
         return images, depths, depth_bins, invalid_depths
 
     def discretize_depth(self, depth):
-        # d_min = tf.reduce_min(depth)
-        # d_max = tf.reduce_max(depth)
-        # q = (tf.log(d_max) - tf.log(d_min)) / (DEPTH_DIM - 1)
         d_min = tf.constant(D_MIN, dtype=tf.float32)
         q = tf.constant(Q, dtype=tf.float32)
-        ones_vec = tf.ones((TARGET_HEIGHT, TARGET_WIDTH, DEPTH_DIM))
-        sth = tf.expand_dims(tf.constant(np.array(range(DEPTH_DIM))), 0)
+        ones_vec = tf.ones((TARGET_HEIGHT, TARGET_WIDTH, DEPTH_DIM + 1))
+        sth = tf.expand_dims(tf.constant(np.append(np.array(range(DEPTH_DIM)), np.inf)), 0)
         sth = tf.expand_dims(sth, 0)
         indices_vec = tf.tile(sth, [TARGET_HEIGHT, TARGET_WIDTH, 1])
         indices_vec_lower = indices_vec - 1

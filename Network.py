@@ -192,10 +192,10 @@ class Network(object):
 
                 conv = tf.layers.dropout(conv, rate=0.5)
 
-                conv = slim.conv2d(conv, num_outputs=dataset.DEPTH_DIM, scope='convFinal', kernel_size=3, stride=1,
+                conv = slim.conv2d(conv, num_outputs=dataset.DEPTH_DIM + 1, scope='convFinal', kernel_size=3, stride=1,
                                    normalizer_fn=None, activation_fn=None)
 
-                conv = slim.conv2d_transpose(conv, num_outputs=dataset.DEPTH_DIM, kernel_size=8, stride=4,
+                conv = slim.conv2d_transpose(conv, num_outputs=dataset.DEPTH_DIM + 1, kernel_size=8, stride=4,
                                              normalizer_fn=None, activation_fn=None)
 
                 return conv
@@ -207,13 +207,15 @@ class Network(object):
         self.y = tf.placeholder(tf.float32, shape=[None, H, W, dataset.DEPTH_DIM + 1], name='y')
         self.y_invalid = tf.placeholder(tf.float32, shape=[None, H, W, 1], name='y_invalid')
 
-        cost = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.y, logits=logits)
+        print('labels shape:', self.y.shape)
+        print('logits shape:', logits.shape)
+        cost = tf.nn.softmax_cross_entropy_with_logits(labels=self.y, logits=logits)
         tf.summary.scalar("cost", cost)
 
         return cost
 
     def bins_to_depth(self, depth_bins):
-        weights = np.array(range(dataset.DEPTH_DIM)) * dataset.Q + np.log(dataset.D_MIN)
+        weights = np.append(np.array(range(dataset.DEPTH_DIM)), np.inf) * dataset.Q + np.log(dataset.D_MIN)
         sth = tf.expand_dims(tf.constant(weights), 0)
         sth = tf.expand_dims(sth, 0)
         sth = tf.expand_dims(sth, 0)
@@ -234,10 +236,13 @@ class Network(object):
         self.saver = tf.train.Saver()  # saver must be initialized after network is set up
 
         # adding trainable weights to tensorboard
-        trainable_vars = slim.get_variables(scope='network', collection=tf.GraphKeys.TRAINABLE_VARIABLES)
-        for variable in trainable_vars:
-            name = variable.name.split(':', 1)[0]
-            tf.summary.histogram(name, variable)
+        for var in tf.trainable_variables():
+            # print(var.op.name)
+            tf.summary.histogram(var.op.name, var)
+        # trainable_vars = slim.get_variables(scope='network', collection=tf.GraphKeys.TRAINABLE_VARIABLES)
+        # for variable in trainable_vars:
+        #     name = variable.name.split(':', 1)[0]
+        #     tf.summary.histogram(name, variable)
 
         estimated_depths_images = self.bins_to_depth(estimated_depths)
         tf.summary.image('predicted_depths', estimated_depths_images)
