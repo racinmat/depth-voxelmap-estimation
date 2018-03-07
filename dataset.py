@@ -94,6 +94,11 @@ class DataSet:
         if not gfile.Exists(output_dir):
             gfile.MakeDirs(output_dir)
         for i, (image, depth) in enumerate(zip(images, depths)):
+            # print('depth shape:', depth.shape)
+            if len(depth.shape) == 3 and depth.shape[2] > 1:
+                raise Exception('oh, boi, shape is going wild', depth.shape)
+            depth = depth[:, :, 0]
+
             pilimg = Image.fromarray(np.uint8(image))
             image_name = "%s/%05d_org.png" % (output_dir, i)
             pilimg.save(image_name)
