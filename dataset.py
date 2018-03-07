@@ -9,8 +9,9 @@ TARGET_HEIGHT = 120
 TARGET_WIDTH = 160
 
 DEPTH_DIM = 200
+# DEPTH_DIM = 10
 
-D_MIN = 0.5
+D_MIN = 0.2
 D_MAX = 50
 Q = (np.log(D_MAX) - np.log(D_MIN)) / (DEPTH_DIM - 1)
 
@@ -61,7 +62,8 @@ class DataSet:
             min_after_dequeue=MIN_DEQUE_EXAMPLES)
         return images, depths, depth_bins, invalid_depths
 
-    def discretize_depth(self, depth):
+    @staticmethod
+    def discretize_depth(depth):
         d_min = tf.constant(D_MIN, dtype=tf.float32)
         q = tf.constant(Q, dtype=tf.float32)
         ones_vec = tf.ones((TARGET_HEIGHT, TARGET_WIDTH, DEPTH_DIM + 1))
@@ -89,7 +91,8 @@ class DataSet:
         depth = np.exp(np.sum(np.multiply(mask, depth_bins), axis=2))
         return depth
 
-    def output_predict(self, depths, images, output_dir):
+    @staticmethod
+    def output_predict(depths, images, output_dir):
         print("output predict into %s" % output_dir)
         if not gfile.Exists(output_dir):
             gfile.MakeDirs(output_dir)

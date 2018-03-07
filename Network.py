@@ -214,15 +214,19 @@ class Network(object):
 
         return cost
 
-    def bins_to_depth(self, depth_bins):
-        weights = np.append(np.array(range(dataset.DEPTH_DIM)), np.inf) * dataset.Q + np.log(dataset.D_MIN)
+    @staticmethod
+    def bins_to_depth(depth_bins):
+        weights = np.array(range(dataset.DEPTH_DIM)) * dataset.Q + np.log(dataset.D_MIN)
         sth = tf.expand_dims(tf.constant(weights, dtype=tf.float32), 0)
         sth = tf.expand_dims(sth, 0)
         sth = tf.expand_dims(sth, 0)
         mask = tf.tile(sth, [BATCH_SIZE, dataset.TARGET_HEIGHT, dataset.TARGET_WIDTH, 1])
-        depth = tf.exp(tf.reduce_sum(tf.multiply(mask, depth_bins), axis=3))
+        depths_bins_without_last = tf.slice(depth_bins, begin=[0, 0, 0, 0], size=[-1, -1, -1, dataset.DEPTH_DIM])  # stripping away the last layer, with not valid depth, no slicing in other dimensions
+        mask_multiplied = tf.multiply(mask, tf.cast(depths_bins_without_last, dtype=tf.float32))
+        mask_multiplied_sum = tf.reduce_sum(mask_multiplied, axis=3)
+        depth = tf.exp(mask_multiplied_sum)
         depth = tf.expand_dims(depth, 3)
-        return depth
+        return depth, weights, mask, mask_multiplied, mask_multiplied_sum
 
     def prepare(self):
         data_set = DataSet(BATCH_SIZE)
