@@ -256,7 +256,8 @@ class Network(object):
         tf.summary.image('input_images', self.images)
         tf.summary.image('ground_truth_depths', self.depths)
         tf.summary.image('predicted_depths', estimated_depths_images)
-        tf.summary.image('predicted_invalid', estimated_depths_images[:, :, :, dataset.DEPTH_DIM])  # this is last layer,
+        # this is last layer, need to expand dim, so the tensor is in shape [batch size, height, width, 1]
+        tf.summary.image('predicted_invalid', tf.expand_dims(estimated_depths[:, :, :, dataset.DEPTH_DIM], 3))
 
         return data_set, loss, estimated_depths, train_op, estimated_depths_images
 
@@ -289,9 +290,10 @@ class Network(object):
                 num_batches_per_epoch = int(float(train_operation.NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN) / BATCH_SIZE)
                 for epoch in range(MAX_EPOCHS):
                     for i in range(num_batches_per_epoch):
-                        # sending images to sess.run so other batch is loaded
+                        # sending images to sess.run so new batch is loaded
                         images, depths, invalid_depths = self.sess.run(
                             [self.images, self.depth_bins, self.invalid_depths])
+                        # training itself
                         _, loss_value, predicted_depths, summary_str = self.sess.run(
                             [train_op, loss, estimated_depths_images, summary],
                             feed_dict={
@@ -300,12 +302,25 @@ class Network(object):
                                 self.y_invalid: invalid_depths,
                             }
                         )
-                        writer.add_summary(summary_str, index)
                         if index % 10 == 0:
+                            # updating summary
+                            summary_str = self.sess.run(
+                                [summary],
+                                feed_dict={
+                                    self.x: images,
+                                    self.y: depths,
+                                    self.y_invalid: invalid_depths,
+                                }
+                            )
+                            writer.add_summary(summary_str, index)
+
+                            # loading new test batch
                             images_test, depths_test, invalid_depths_test = self.sess.run(
                                 [self.images_test, self.depth_bins_test, self.invalid_depths_test])
-                            test_loss_value, test_predicted_depths, test_summary_str = self.sess.run(
-                                [loss, estimated_depths_images, summary],
+
+                            # testing itself
+                            test_loss_value, test_predicted_depths = self.sess.run(
+                                [loss, estimated_depths_images],
                                 feed_dict={
                                     self.x: images_test,
                                     self.y: depths_test,
