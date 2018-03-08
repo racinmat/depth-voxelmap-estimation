@@ -210,6 +210,7 @@ class Network(object):
         print('labels shape:', self.y.shape)
         print('logits shape:', logits.shape)
         cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.y, logits=logits))
+
         tf.summary.scalar("cost", cost)
 
         return cost
@@ -221,12 +222,13 @@ class Network(object):
         sth = tf.expand_dims(sth, 0)
         sth = tf.expand_dims(sth, 0)
         mask = tf.tile(sth, [BATCH_SIZE, dataset.TARGET_HEIGHT, dataset.TARGET_WIDTH, 1])
-        depths_bins_without_last = tf.slice(depth_bins, begin=[0, 0, 0, 0], size=[-1, -1, -1, dataset.DEPTH_DIM])  # stripping away the last layer, with not valid depth, no slicing in other dimensions
+        depths_bins_without_last = depth_bins[:, :, :, 0:dataset.DEPTH_DIM]
+        # depths_bins_without_last = tf.slice(depth_bins, begin=[0, 0, 0, 0], size=[-1, -1, -1, dataset.DEPTH_DIM])  # stripping away the last layer, with not valid depth, no slicing in other dimensions
         mask_multiplied = tf.multiply(mask, tf.cast(depths_bins_without_last, dtype=tf.float32))
         mask_multiplied_sum = tf.reduce_sum(mask_multiplied, axis=3)
         depth = tf.exp(mask_multiplied_sum)
         depth = tf.expand_dims(depth, 3)
-        return depth, weights, mask, mask_multiplied, mask_multiplied_sum
+        return depth
 
     def prepare(self):
         data_set = DataSet(BATCH_SIZE)
@@ -250,7 +252,12 @@ class Network(object):
         #     tf.summary.histogram(name, variable)
 
         estimated_depths_images = self.bins_to_depth(estimated_depths)
+
+        tf.summary.image('input_images', self.images)
+        tf.summary.image('ground_truth_depths', self.depths)
         tf.summary.image('predicted_depths', estimated_depths_images)
+        tf.summary.image('predicted_invalid', estimated_depths_images[:, :, :, dataset.DEPTH_DIM])  # this is last layer,
+
         return data_set, loss, estimated_depths, train_op, estimated_depths_images
 
     def train(self):
