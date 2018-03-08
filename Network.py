@@ -257,6 +257,8 @@ class Network(object):
         tf.summary.image('ground_truth_depths', self.depths)
         tf.summary.image('predicted_depths', estimated_depths_images)
         # this is last layer, need to expand dim, so the tensor is in shape [batch size, height, width, 1]
+        for i in range(0, dataset.DEPTH_DIM, 20):
+            tf.summary.image('predicted_layer_'+str(i), tf.expand_dims(estimated_depths[:, :, i], 3))
         tf.summary.image('predicted_invalid', tf.expand_dims(estimated_depths[:, :, :, dataset.DEPTH_DIM], 3))
 
         return data_set, loss, estimated_depths, train_op, estimated_depths_images
@@ -305,7 +307,7 @@ class Network(object):
                         if index % 10 == 0:
                             # updating summary
                             summary_str = self.sess.run(
-                                [summary],
+                                summary,
                                 feed_dict={
                                     self.x: images,
                                     self.y: depths,
