@@ -17,9 +17,8 @@ from tensorflow.contrib.slim import arg_scope
 current_time = time.strftime("%Y-%m-%d--%H-%M-%S", time.gmtime())
 
 # these weights are from resnet: https://github.com/ry/tensorflow-resnet/blob/master/resnet.py
-MOVING_AVERAGE_DECAY = 0.9997
-BN_DECAY = MOVING_AVERAGE_DECAY
-BN_EPSILON = 0.001
+BN_DECAY = 0.9997
+BN_EPSILON = 1e-3
 CONV_WEIGHT_DECAY = 4e-5
 CONV_WEIGHT_STDDEV = 0.1
 
@@ -33,7 +32,7 @@ PREDICT_DIR = os.path.join('predict', current_time)
 CHECKPOINT_DIR = os.path.join('checkpoint', current_time)  # Directory name to save the checkpoints
 LOGS_DIR = 'logs'
 GPU_IDX = [0]
-
+WEIGHTS_REGULARIZER = slim.l2_regularizer(CONV_WEIGHT_DECAY)
 
 class Network(object):
 
@@ -127,9 +126,9 @@ class Network(object):
         with arg_scope([layers.conv2d, layers.conv2d_transpose],
                        normalizer_fn=layers.batch_norm,
                        normalizer_params=batch_norm_params,
-                       weights_initializer=tf.truncated_normal_initializer(stddev=CONV_WEIGHT_STDDEV),
+                       weights_initializer=layers.xavier_initializer(uniform=False),
                        biases_initializer=tf.constant_initializer(0.1),
-                       weights_regularizer=slim.l2_regularizer(CONV_WEIGHT_DECAY)
+                       weights_regularizer=WEIGHTS_REGULARIZER
                        ):
             with tf.variable_scope('network') as scope:
                 self.x = tf.placeholder(tf.float32, shape=[None, dataset.IMAGE_HEIGHT, dataset.IMAGE_WIDTH, 3],
@@ -196,7 +195,7 @@ class Network(object):
                                    normalizer_fn=None, activation_fn=None)
 
                 conv = slim.conv2d_transpose(conv, num_outputs=dataset.DEPTH_DIM + 1, kernel_size=8, stride=4,
-                                             normalizer_fn=None, activation_fn=None)
+                                             normalizer_fn=None, activation_fn=None, scope='deconvFinal')
 
                 return conv
 
@@ -258,7 +257,8 @@ class Network(object):
         tf.summary.image('predicted_depths', estimated_depths_images)
         # this is last layer, need to expand dim, so the tensor is in shape [batch size, height, width, 1]
         for i in range(0, dataset.DEPTH_DIM, 20):
-            tf.summary.image('predicted_layer_'+str(i), tf.expand_dims(estimated_depths[:, :, i], 3))
+            tf.summary.image('predicted_layer_'+str(i), tf.expand_dims(estimated_depths[:, :, :, i], 3))
+
         tf.summary.image('predicted_invalid', tf.expand_dims(estimated_depths[:, :, :, dataset.DEPTH_DIM], 3))
 
         return data_set, loss, estimated_depths, train_op, estimated_depths_images
