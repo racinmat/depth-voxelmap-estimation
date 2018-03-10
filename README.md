@@ -4,9 +4,6 @@ This repo is an implementation of this paper: https://arxiv.org/pdf/1705.00534.p
 
 Explained better here: https://arxiv.org/pdf/1708.02287.pdf
 
-
-I did not write the paper
-
-#TODO: description of the architecture and link the papers that the describe the techniques
-
-#TODO: get the cost of inference
+Runs: 
+ - 2018-03-08--16-41-31 initial with correct implementation, with batch normalization, no weights decay
+ - 2018-03-09--17-23-46 hopefully correct learning rate decay, xavier initialization, no weights regularization

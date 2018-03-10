@@ -25,14 +25,19 @@ CONV_WEIGHT_STDDEV = 0.1
 MAX_EPOCHS = int(1e7)
 LOG_DEVICE_PLACEMENT = False
 BATCH_SIZE = 8
-TRAIN_FILE = "train.csv"
-TEST_FILE = "test.csv"
+
+# TRAIN_FILE = "train.csv"
+# TEST_FILE = "test.csv"
+TRAIN_FILE = "train-small.csv"
+TEST_FILE = "train-small.csv"
+
 COARSE_DIR = "coarse"
 PREDICT_DIR = os.path.join('predict', current_time)
 CHECKPOINT_DIR = os.path.join('checkpoint', current_time)  # Directory name to save the checkpoints
 LOGS_DIR = 'logs'
 GPU_IDX = [0]
-WEIGHTS_REGULARIZER = slim.l2_regularizer(CONV_WEIGHT_DECAY)
+# WEIGHTS_REGULARIZER = slim.l2_regularizer(CONV_WEIGHT_DECAY)
+WEIGHTS_REGULARIZER = None
 
 class Network(object):
 
