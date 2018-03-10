@@ -2,7 +2,8 @@
 
 import tensorflow as tf
 
-NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 1500 # should be size of dataset so epoch name is correct
+# NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 1500 # should be size of dataset so epoch name is correct
+NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 40 # should be size of dataset so epoch name is correct
 NUM_EPOCHS_PER_DECAY = 30
 ITERATIONS_PER_DECAY = 20000
 INITIAL_LEARNING_RATE = 1e-4
