@@ -202,7 +202,8 @@ class Network(object):
                 conv = slim.conv2d_transpose(conv, num_outputs=dataset.DEPTH_DIM + 1, kernel_size=8, stride=4,
                                              normalizer_fn=None, activation_fn=None, scope='deconvFinal')
 
-                return conv
+                probs = slim.softmax(conv, 'softmaxFinal')
+                return probs, conv
 
     def loss(self, logits):
         H = dataset.TARGET_HEIGHT
@@ -214,7 +215,6 @@ class Network(object):
         print('labels shape:', self.y.shape)
         print('logits shape:', logits.shape)
         cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.y, logits=logits))
-
         tf.summary.scalar("cost", cost)
 
         return cost
@@ -241,7 +241,7 @@ class Network(object):
         self.images, self.depths, self.depth_bins, self.invalid_depths = data_set.csv_inputs(TRAIN_FILE)
         self.images_test, self.depths_test, self.depth_bins_test, self.invalid_depths_test = data_set.csv_inputs(
             TEST_FILE)
-        estimated_depths = self.inference()
+        estimated_depths, estimated_logits = self.inference()
         loss = self.loss(estimated_depths)
         train_op = op.train(loss, global_step, BATCH_SIZE)
         self.saver = tf.train.Saver()  # saver must be initialized after network is set up
