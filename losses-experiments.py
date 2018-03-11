@@ -6,6 +6,7 @@ import tensorflow.contrib.layers as layers
 import tensorflow.contrib.slim as slim
 from tensorflow.contrib.slim import arg_scope
 
+
 # def playground_loss_function(labels, logits):
 #     # in rank 2, [elements, classes]
 #
@@ -39,7 +40,7 @@ def labels_to_info_gain(labels, logits, alpha=0.2):
     prob_bin_idx = np.tile(range(logits.shape[last_axis]), (labels.shape[0], 1))
     # print('label_idx', '\n', label_idx)
     # print('probs_idx', '\n', prob_bin_idx)
-    info_gain = np.exp(-alpha * (label_idx - prob_bin_idx)**2)
+    info_gain = np.exp(-alpha * (label_idx - prob_bin_idx) ** 2)
     print('info gain', '\n', info_gain)
     return info_gain
 
@@ -54,7 +55,7 @@ def tf_labels_to_info_gain(labels, logits, alpha=0.2):
     prob_bin_idx = tf.expand_dims(tf.range(logits.shape[last_axis], dtype=tf.int32), last_axis)
     prob_bin_idx = tf.transpose(prob_bin_idx)
     prob_bin_idx = tf.tile(prob_bin_idx, [tf.shape(labels)[0], 1])
-    difference = (label_idx - prob_bin_idx)**2
+    difference = (label_idx - prob_bin_idx) ** 2
     difference = tf.cast(difference, dtype=tf.float32)
     info_gain = tf.exp(-alpha * difference)
     return info_gain
@@ -65,7 +66,9 @@ def softmax_loss(labels, logits):
 
 
 def information_gain_loss(labels, logits):
-    return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=tf_labels_to_info_gain(labels=labels, logits=logits), logits=logits))
+    return tf.reduce_mean(
+        tf.nn.softmax_cross_entropy_with_logits(labels=tf_labels_to_info_gain(labels=labels, logits=logits, alpha=0.2),
+                                                logits=logits))
 
 
 def inference():
@@ -74,9 +77,11 @@ def inference():
                    biases_initializer=tf.constant_initializer(0.1),
                    ):
         x = tf.placeholder(tf.float32, shape=[None, 5], name='x')
-        l1 = slim.fully_connected(x, num_outputs=10, scope='fc1', activation_fn=tf.nn.relu)
-        l2 = slim.fully_connected(l1, num_outputs=5, scope='fc2', activation_fn=None)
-        return x, l2
+        l1 = slim.fully_connected(x, num_outputs=8, scope='fc1', activation_fn=tf.nn.relu)
+        l2 = slim.fully_connected(l1, num_outputs=8, scope='fc2', activation_fn=tf.nn.relu)
+        l3 = slim.fully_connected(l2, num_outputs=8, scope='fc3', activation_fn=tf.nn.relu)
+        l4 = slim.fully_connected(l3, num_outputs=5, scope='fc4', activation_fn=None)
+        return x, l4
 
 
 if __name__ == '__main__':
@@ -87,29 +92,43 @@ if __name__ == '__main__':
             labels = tf.placeholder(tf.float32, shape=[None, 5], name='labels')
 
             # loss = softmax_loss(labels=labels, logits=logits)
+            # log_dir = 'playground/simple'
+
             loss = information_gain_loss(labels=labels, logits=logits)
+            log_dir = 'playground/info'
 
             optimizer = tf.train.AdamOptimizer()
             train_op = optimizer.minimize(loss)
             tf.summary.scalar("loss", loss)
+
+            tf.summary.histogram('probs', probs)
+            tf.summary.histogram('logits', logits)
+
             tf.summary.scalar("prob0", probs[0, 0])
             tf.summary.scalar("prob1", probs[0, 1])
             tf.summary.scalar("prob2", probs[0, 2])
             tf.summary.scalar("prob3", probs[0, 3])
             tf.summary.scalar("prob4", probs[0, 4])
+
+            for var in tf.trainable_variables():
+                tf.summary.histogram(var.op.name, var)
+
             summary = tf.summary.merge_all()  # merge all summaries to dump them for tensorboard
-            writer = tf.summary.FileWriter('playground/info', sess.graph)
+
+            writer = tf.summary.FileWriter(log_dir, sess.graph)
 
             sess.run(tf.global_variables_initializer())
-            for i in range(1000):
+            for i in range(5000):
                 _, cost, predicted, summary_str = sess.run([train_op, loss, probs, summary], feed_dict={
                     x: np.array([
                         [1, 1, 1, 1, 1],
                         [0, 0, 0, 1, 1],
+                        [1, 1, 1, 0, 0],
                     ]),
                     labels: np.array([
                         [0, 1, 0, 0, 0],
                         [0, 0, 1, 0, 0],
+                        [1, 0, 0, 0, 0],
                     ]),
                 })
                 writer.add_summary(summary_str, i)
