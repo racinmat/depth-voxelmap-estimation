@@ -35,7 +35,7 @@ COARSE_DIR = "coarse"
 PREDICT_DIR = os.path.join('predict', current_time)
 CHECKPOINT_DIR = os.path.join('checkpoint', current_time)  # Directory name to save the checkpoints
 LOGS_DIR = 'logs'
-GPU_IDX = [1]
+GPU_IDX = [2]
 # WEIGHTS_REGULARIZER = slim.l2_regularizer(CONV_WEIGHT_DECAY)
 WEIGHTS_REGULARIZER = None
 
@@ -208,14 +208,22 @@ class Network(object):
 
     @staticmethod
     def tf_labels_to_info_gain(labels, logits, alpha=0.2):
+        # int 16 stačí, protože je to index binu pro hloubku
         last_axis = len(logits.shape) - 1
-        label_idx = tf.expand_dims(tf.argmax(labels, axis=last_axis), 0)
+        label_idx = tf.expand_dims(tf.argmax(labels, axis=last_axis), last_axis)
         label_idx = tf.cast(label_idx, dtype=tf.int32)
-        label_idx = tf.tile(label_idx, [labels.shape[last_axis], 1])
-        label_idx = tf.transpose(label_idx)
-        prob_bin_idx = tf.expand_dims(tf.range(logits.shape[last_axis], dtype=tf.int32), last_axis)
-        prob_bin_idx = tf.transpose(prob_bin_idx)
-        prob_bin_idx = tf.tile(prob_bin_idx, [tf.shape(labels)[0], 1])
+        # expanding back to have size in dim 4 (reduced by argmax)
+        tiling_shape = list(labels.shape)
+        tiling_shape[0:last_axis] = [tf.Dimension(1) for i in range(last_axis)]
+        label_idx = tf.tile(label_idx, tiling_shape)
+        prob_bin_idx = tf.range(logits.shape[last_axis], dtype=tf.int32)
+        for i in range(last_axis):
+            prob_bin_idx = tf.expand_dims(prob_bin_idx, 0)
+        # prob_bin_idx = tf.transpose(prob_bin_idx)
+        tiling_shape = list(labels.shape)
+        tiling_shape[0] = tf.shape(labels)[0]
+        tiling_shape[last_axis] = tf.Dimension(1)
+        prob_bin_idx = tf.tile(prob_bin_idx, tiling_shape)
 
         difference = (label_idx - prob_bin_idx) ** 2
         difference = tf.cast(difference, dtype=tf.float32)

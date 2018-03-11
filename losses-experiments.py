@@ -48,13 +48,20 @@ def labels_to_info_gain(labels, logits, alpha=0.2):
 def tf_labels_to_info_gain(labels, logits, alpha=0.2):
     # int 16 stačí, protože je to index binu pro hloubku
     last_axis = len(logits.shape) - 1
-    label_idx = tf.expand_dims(tf.argmax(labels, axis=last_axis), 0)
+    label_idx = tf.expand_dims(tf.argmax(labels, axis=last_axis), last_axis)
     label_idx = tf.cast(label_idx, dtype=tf.int32)
-    label_idx = tf.tile(label_idx, [labels.shape[last_axis], 1])
-    label_idx = tf.transpose(label_idx)
-    prob_bin_idx = tf.expand_dims(tf.range(logits.shape[last_axis], dtype=tf.int32), last_axis)
-    prob_bin_idx = tf.transpose(prob_bin_idx)
-    prob_bin_idx = tf.tile(prob_bin_idx, [tf.shape(labels)[0], 1])
+    # expanding back to have size in dim 4 (reduced by argmax)
+    tiling_shape = list(labels.shape)
+    tiling_shape[0:last_axis] = [tf.Dimension(1) for i in range(last_axis)]
+    label_idx = tf.tile(label_idx, tiling_shape)
+    prob_bin_idx = tf.range(logits.shape[last_axis], dtype=tf.int32)
+    for i in range(last_axis):
+        prob_bin_idx = tf.expand_dims(prob_bin_idx, 0)
+    # prob_bin_idx = tf.transpose(prob_bin_idx)
+    tiling_shape = list(labels.shape)
+    tiling_shape[0] = tf.shape(labels)[0]
+    tiling_shape[last_axis] = tf.Dimension(1)
+    prob_bin_idx = tf.tile(prob_bin_idx, tiling_shape)
 
     difference = (label_idx - prob_bin_idx) ** 2
     difference = tf.cast(difference, dtype=tf.float32)
@@ -77,7 +84,7 @@ def inference():
                    weights_initializer=layers.xavier_initializer(uniform=True),
                    biases_initializer=tf.constant_initializer(0.1),
                    ):
-        x = tf.placeholder(tf.float32, shape=[None, 5], name='x')
+        x = tf.placeholder(tf.float32, shape=[None, IMG_H, IMG_W, 5], name='x')
         l1 = slim.fully_connected(x, num_outputs=8, scope='fc1', activation_fn=tf.nn.relu)
         l2 = slim.fully_connected(l1, num_outputs=8, scope='fc2', activation_fn=tf.nn.relu)
         l3 = slim.fully_connected(l2, num_outputs=8, scope='fc3', activation_fn=tf.nn.relu)
@@ -86,11 +93,14 @@ def inference():
 
 
 if __name__ == '__main__':
+    IMG_H = 3
+    IMG_W = 4
+
     with tf.Graph().as_default():
         with tf.Session() as sess:
             x, logits = inference()
             probs = slim.softmax(logits)
-            labels = tf.placeholder(tf.float32, shape=[None, 5], name='labels')
+            labels = tf.placeholder(tf.float32, shape=[None, IMG_H, IMG_W, 5], name='labels')
 
             # loss = softmax_loss(labels=labels, logits=logits)
             # log_dir = 'playground/simple_lr_1e-3'
@@ -105,11 +115,11 @@ if __name__ == '__main__':
             tf.summary.histogram('probs', probs)
             tf.summary.histogram('logits', logits)
 
-            tf.summary.scalar("prob0", probs[0, 0])
-            tf.summary.scalar("prob1", probs[0, 1])
-            tf.summary.scalar("prob2", probs[0, 2])
-            tf.summary.scalar("prob3", probs[0, 3])
-            tf.summary.scalar("prob4", probs[0, 4])
+            # tf.summary.scalar("prob0", probs[0, 0])
+            # tf.summary.scalar("prob1", probs[0, 1])
+            # tf.summary.scalar("prob2", probs[0, 2])
+            # tf.summary.scalar("prob3", probs[0, 3])
+            # tf.summary.scalar("prob4", probs[0, 4])
 
             for var in tf.trainable_variables():
                 tf.summary.histogram(var.op.name, var)
@@ -125,11 +135,17 @@ if __name__ == '__main__':
                         [0, 0, 0, 1, 1],
                         [1, 1, 1, 0, 0],
                     ])
+                x_val = np.expand_dims(x_val, 1)
+                x_val = np.expand_dims(x_val, 1)
+                x_val = np.tile(x_val, [1, 3, 4, 1])
                 labels_val = np.array([
                         [0, 1, 0, 0, 0],
                         [0, 0, 1, 0, 0],
                         [1, 0, 0, 0, 0],
                     ])
+                labels_val = np.expand_dims(labels_val, 1)
+                labels_val = np.expand_dims(labels_val, 1)
+                labels_val = np.tile(labels_val, [1, IMG_H, IMG_W, 1])
                 _, cost, predicted = sess.run([train_op, loss, probs], feed_dict={
                     x: x_val,
                     labels: labels_val,
