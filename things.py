@@ -127,6 +127,8 @@ def playing_with_losses():
         [0, 1, 0, 0, 0],
         [0, 1, 0, 0, 0],
         [0, 1, 0, 0, 0],
+        [0, 1, 0, 0, 0],
+        [0, 1, 0, 0, 0],
         # [0, 1, 0, 0, 0],
         # [0, 0, 1, 0, 0],
         # [0, 0, 0, 1, 0],
@@ -134,10 +136,12 @@ def playing_with_losses():
         # [1, 0, 0, 0, 0],
     ])
     logits = np.array([
-        [0, 1, 0, 0, 0],
+        [0, 20, 0, 0, 0],
         [0, 10, 0, 0, 0],
         [0, 2, 0, 0, 0],
-        [1, 1, 0, 0, 0],
+        [1, 1, 1, 0, 0],
+        [0, 1, 0, 0, 1],
+        [0, 1, 0, 0, 0],
         # [3, 1, 1, 1, 1],
         # [0, 10, 0, 0, 0],
         # [1, 5, 1, 1, 1],
@@ -190,6 +194,22 @@ def playing_with_losses():
 
 if __name__ == '__main__':
     playing_with_losses()
+
+    # arr = np.array([
+    #     [1, 1, 1, 2],
+    #     [2, 2, 2, 4],
+    #     [4, 4, 4, 8],
+    # ])
+    # with tf.Graph().as_default():
+    #     with tf.Session() as sess:
+    #         logits_tf = tf.constant(arr, dtype=tf.float32)
+    #         tf_mean = sess.run(tf.reduce_mean(logits_tf))
+    #         print('tf_mean\n', tf_mean)
+    #
+    # print('mean\n', np.mean(arr))
+    # print('sum_per_row\n', np.sum(arr, axis=1))
+    # print('mean_of_sum\n', np.mean(np.sum(arr, axis=1), axis=0))
+
     # ds = DataSet(8)
     # ds.load_params('train.csv')
     #

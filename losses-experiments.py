@@ -55,6 +55,7 @@ def tf_labels_to_info_gain(labels, logits, alpha=0.2):
     prob_bin_idx = tf.expand_dims(tf.range(logits.shape[last_axis], dtype=tf.int32), last_axis)
     prob_bin_idx = tf.transpose(prob_bin_idx)
     prob_bin_idx = tf.tile(prob_bin_idx, [tf.shape(labels)[0], 1])
+
     difference = (label_idx - prob_bin_idx) ** 2
     difference = tf.cast(difference, dtype=tf.float32)
     info_gain = tf.exp(-alpha * difference)
@@ -65,9 +66,9 @@ def softmax_loss(labels, logits):
     return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
 
 
-def information_gain_loss(labels, logits):
+def information_gain_loss(labels, logits, alpha=0.2):
     return tf.reduce_mean(
-        tf.nn.softmax_cross_entropy_with_logits(labels=tf_labels_to_info_gain(labels=labels, logits=logits, alpha=0.2),
+        tf.nn.softmax_cross_entropy_with_logits(labels=tf_labels_to_info_gain(labels=labels, logits=logits, alpha=alpha),
                                                 logits=logits))
 
 
@@ -92,12 +93,12 @@ if __name__ == '__main__':
             labels = tf.placeholder(tf.float32, shape=[None, 5], name='labels')
 
             # loss = softmax_loss(labels=labels, logits=logits)
-            # log_dir = 'playground/simple'
+            # log_dir = 'playground/simple_lr_1e-3'
 
-            loss = information_gain_loss(labels=labels, logits=logits)
-            log_dir = 'playground/info'
+            loss = information_gain_loss(labels=labels, logits=logits, alpha=1)
+            log_dir = 'playground/info_lr_1e-4_a_1'
 
-            optimizer = tf.train.AdamOptimizer()
+            optimizer = tf.train.AdamOptimizer(learning_rate=1e-4)
             train_op = optimizer.minimize(loss)
             tf.summary.scalar("loss", loss)
 
@@ -119,17 +120,25 @@ if __name__ == '__main__':
 
             sess.run(tf.global_variables_initializer())
             for i in range(5000):
-                _, cost, predicted, summary_str = sess.run([train_op, loss, probs, summary], feed_dict={
-                    x: np.array([
+                x_val = np.array([
                         [1, 1, 1, 1, 1],
                         [0, 0, 0, 1, 1],
                         [1, 1, 1, 0, 0],
-                    ]),
-                    labels: np.array([
+                    ])
+                labels_val = np.array([
                         [0, 1, 0, 0, 0],
                         [0, 0, 1, 0, 0],
                         [1, 0, 0, 0, 0],
-                    ]),
+                    ])
+                _, cost, predicted = sess.run([train_op, loss, probs], feed_dict={
+                    x: x_val,
+                    labels: labels_val,
                 })
-                writer.add_summary(summary_str, i)
+
+                if i % 10 == 0:
+                    summary_str = sess.run(summary, feed_dict={
+                        x: x_val,
+                        labels: labels_val,
+                    })
+                    writer.add_summary(summary_str, i)
                 print('iteration i:', i)
