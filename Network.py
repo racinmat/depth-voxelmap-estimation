@@ -214,15 +214,16 @@ class Network(object):
         label_idx = tf.cast(label_idx, dtype=tf.int32)
         # expanding back to have size in dim 4 (reduced by argmax)
         tiling_shape = list(labels.shape)
-        tiling_shape[0:last_axis] = [tf.Dimension(1) for i in range(last_axis)]
+        tiling_shape[0:last_axis] = [1 for i in range(last_axis)]
+        tiling_shape[last_axis] = tiling_shape[last_axis].value
         label_idx = tf.tile(label_idx, tiling_shape)
         prob_bin_idx = tf.range(logits.shape[last_axis], dtype=tf.int32)
         for i in range(last_axis):
             prob_bin_idx = tf.expand_dims(prob_bin_idx, 0)
         # prob_bin_idx = tf.transpose(prob_bin_idx)
-        tiling_shape = list(labels.shape)
+        tiling_shape = [i.value for i in labels.shape]
         tiling_shape[0] = tf.shape(labels)[0]
-        tiling_shape[last_axis] = tf.Dimension(1)
+        tiling_shape[last_axis] = 1
         prob_bin_idx = tf.tile(prob_bin_idx, tiling_shape)
 
         difference = (label_idx - prob_bin_idx) ** 2
