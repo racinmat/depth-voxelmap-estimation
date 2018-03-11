@@ -22,7 +22,7 @@ BN_EPSILON = 1e-3
 CONV_WEIGHT_DECAY = 4e-5
 CONV_WEIGHT_STDDEV = 0.1
 
-MAX_EPOCHS = int(1e7)
+MAX_EPOCHS = int(1e6)
 LOG_DEVICE_PLACEMENT = False
 BATCH_SIZE = 8
 
@@ -35,9 +35,10 @@ COARSE_DIR = "coarse"
 PREDICT_DIR = os.path.join('predict', current_time)
 CHECKPOINT_DIR = os.path.join('checkpoint', current_time)  # Directory name to save the checkpoints
 LOGS_DIR = 'logs'
-GPU_IDX = [0]
+GPU_IDX = [1]
 # WEIGHTS_REGULARIZER = slim.l2_regularizer(CONV_WEIGHT_DECAY)
 WEIGHTS_REGULARIZER = None
+
 
 class Network(object):
 
@@ -205,6 +206,32 @@ class Network(object):
                 probs = slim.softmax(conv, 'softmaxFinal')
                 return probs, conv
 
+    @staticmethod
+    def tf_labels_to_info_gain(labels, logits, alpha=0.2):
+        last_axis = len(logits.shape) - 1
+        label_idx = tf.expand_dims(tf.argmax(labels, axis=last_axis), 0)
+        label_idx = tf.cast(label_idx, dtype=tf.int32)
+        label_idx = tf.tile(label_idx, [labels.shape[last_axis], 1])
+        label_idx = tf.transpose(label_idx)
+        prob_bin_idx = tf.expand_dims(tf.range(logits.shape[last_axis], dtype=tf.int32), last_axis)
+        prob_bin_idx = tf.transpose(prob_bin_idx)
+        prob_bin_idx = tf.tile(prob_bin_idx, [tf.shape(labels)[0], 1])
+
+        difference = (label_idx - prob_bin_idx) ** 2
+        difference = tf.cast(difference, dtype=tf.float32)
+        info_gain = tf.exp(-alpha * difference)
+        return info_gain
+
+    def information_gain_loss(self, labels, logits, alpha=0.2):
+        return tf.reduce_mean(
+            tf.nn.softmax_cross_entropy_with_logits(
+                labels=self.tf_labels_to_info_gain(labels=labels, logits=logits, alpha=alpha),
+                logits=logits))
+
+    @staticmethod
+    def softmax_loss(labels, logits):
+        return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
+
     def loss(self, logits):
         H = dataset.TARGET_HEIGHT
         W = dataset.TARGET_WIDTH
@@ -214,7 +241,8 @@ class Network(object):
 
         print('labels shape:', self.y.shape)
         print('logits shape:', logits.shape)
-        cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.y, logits=logits))
+        # cost = self.softmax_loss(labels=self.y, logits=logits)
+        cost = self.information_gain_loss(labels=self.y, logits=logits)
         tf.summary.scalar("cost", cost)
 
         return cost
@@ -262,7 +290,7 @@ class Network(object):
         tf.summary.image('predicted_depths', estimated_depths_images)
         # this is last layer, need to expand dim, so the tensor is in shape [batch size, height, width, 1]
         for i in range(0, dataset.DEPTH_DIM, 20):
-            tf.summary.image('predicted_layer_'+str(i), tf.expand_dims(estimated_depths[:, :, :, i], 3))
+            tf.summary.image('predicted_layer_' + str(i), tf.expand_dims(estimated_depths[:, :, :, i], 3))
 
         tf.summary.image('predicted_invalid', tf.expand_dims(estimated_depths[:, :, :, dataset.DEPTH_DIM], 3))
 
@@ -338,7 +366,7 @@ class Network(object):
                                 "%s: %d[epoch]: %d[iteration]: train loss %f" % (datetime.now(), epoch, i, loss_value))
                             print(
                                 "%s: %d[epoch]: %d[iteration]: test loss %f" % (
-                                datetime.now(), epoch, i, test_loss_value))
+                                    datetime.now(), epoch, i, test_loss_value))
                             assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
                         if index % 500 == 0:
                             data_set.output_predict(predicted_depths, images,

@@ -6,8 +6,8 @@ import tensorflow as tf
 NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 40 # should be size of dataset so epoch name is correct
 NUM_EPOCHS_PER_DECAY = 30
 ITERATIONS_PER_DECAY = 20000
-INITIAL_LEARNING_RATE = 1e-5
-LEARNING_RATE_DECAY_FACTOR = 0.9
+INITIAL_LEARNING_RATE = 1e-4
+LEARNING_RATE_DECAY_FACTOR = 0.1  # dividing by 10 every decay
 
 
 def train(total_loss, global_step, batch_size):
