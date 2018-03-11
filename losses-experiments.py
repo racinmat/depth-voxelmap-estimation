@@ -53,7 +53,7 @@ def tf_labels_to_info_gain(labels, logits, alpha=0.2):
     label_idx = tf.transpose(label_idx)
     prob_bin_idx = tf.expand_dims(tf.range(logits.shape[last_axis], dtype=tf.int32), last_axis)
     prob_bin_idx = tf.transpose(prob_bin_idx)
-    prob_bin_idx = tf.tile(prob_bin_idx, [labels.shape[0], 1])
+    prob_bin_idx = tf.tile(prob_bin_idx, [tf.shape(labels)[0], 1])
     difference = (label_idx - prob_bin_idx)**2
     difference = tf.cast(difference, dtype=tf.float32)
     info_gain = tf.exp(-alpha * difference)
@@ -85,7 +85,10 @@ if __name__ == '__main__':
             x, logits = inference()
             probs = slim.softmax(logits)
             labels = tf.placeholder(tf.float32, shape=[None, 5], name='labels')
-            loss = softmax_loss(labels=labels, logits=logits)
+
+            # loss = softmax_loss(labels=labels, logits=logits)
+            loss = information_gain_loss(labels=labels, logits=logits)
+
             optimizer = tf.train.AdamOptimizer()
             train_op = optimizer.minimize(loss)
             tf.summary.scalar("loss", loss)
@@ -95,7 +98,7 @@ if __name__ == '__main__':
             tf.summary.scalar("prob3", probs[0, 3])
             tf.summary.scalar("prob4", probs[0, 4])
             summary = tf.summary.merge_all()  # merge all summaries to dump them for tensorboard
-            writer = tf.summary.FileWriter('playground/simple', sess.graph)
+            writer = tf.summary.FileWriter('playground/info', sess.graph)
 
             sess.run(tf.global_variables_initializer())
             for i in range(1000):
