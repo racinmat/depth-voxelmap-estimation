@@ -116,7 +116,13 @@ if __name__ == '__main__':
     for i in range(Network.BATCH_SIZE):
         im = Image.fromarray(batch_rgb[i, :, :, :].astype(np.uint8))
         im.save("evaluate/orig-rgb-{}.png".format(i))
-        im = Image.fromarray(batch_depth[i, :, :, :].astype(np.uint8))
+
+        depth = batch_depth[i, :, :, :]
+        if np.max(depth) != 0:
+            depth = (depth / np.max(depth)) * 255.0
+        else:
+            depth = depth * 255.0
+            im = Image.fromarray(depth.astype(np.uint8), mode="L")
         im.save("evaluate/orig-depth-{}.png".format(i))
 
     column_names = get_evaluation_names()
