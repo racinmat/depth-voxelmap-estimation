@@ -48,7 +48,7 @@ def evaluate_model(model_name, needs_conversion, rgb_img, truth_img):
                 model = Network.Network.bins_to_depth(model)
             pred_img = inference(model, input, rgb_img, graph, sess)
 
-    return {
+    return pred_img, {
         'treshold_1.25': metrics_np.accuracy_under_treshold(truth_img, pred_img, 1.25),
         'mean_rel_err': metrics_np.mean_relative_error(truth_img, pred_img),
         'rms': metrics_np.root_mean_squared_error(truth_img, pred_img),
@@ -58,13 +58,13 @@ def evaluate_model(model_name, needs_conversion, rgb_img, truth_img):
 
 
 def get_evaluation_names():
-    return {
+    return [
         'treshold_1.25',
         'mean_rel_err',
         'rms',
         'rms_log',
         'log10_err',
-    }
+    ]
 
 
 if __name__ == '__main__':
@@ -75,28 +75,62 @@ if __name__ == '__main__':
         ['2018-03-11--14-40-26', True],
     ]
 
-    images = [
+    images = np.array([
         ['data/nyu_datasets/00836.jpg', 'data/nyu_datasets/00836.png'],
-    ]
+        ['data/nyu_datasets/00952.jpg', 'data/nyu_datasets/00952.png'],
+        ['data/nyu_datasets/00953.jpg', 'data/nyu_datasets/00953.png'],
+    ])
 
-    batch_rgb = np.zeros((len(images), dataset.IMAGE_HEIGHT, dataset.IMAGE_WIDTH, 3))
-    batch_depth = np.zeros((len(images), dataset.TARGET_HEIGHT, dataset.TARGET_WIDTH, 1))
-    for i, (rgb_name, depth_name) in enumerate(images):
-        rgb_img = Image.open(rgb_name)
-        rgb_img = rgb_img.resize((dataset.IMAGE_WIDTH, dataset.IMAGE_HEIGHT), Image.ANTIALIAS)
-        image_rgb = np.asarray(rgb_img, dtype="int32")
-        batch_rgb[i, :, :, :] = image_rgb
-
-        depth_img = Image.open(depth_name)
-        depth_img = depth_img.resize((dataset.TARGET_WIDTH, dataset.TARGET_HEIGHT), Image.ANTIALIAS)
-        image_depth = np.asarray(depth_img, dtype="int32")
-        batch_depth[i, :, :, 0] = image_depth
     Network.BATCH_SIZE = len(images)
+    ds = dataset.DataSet(len(images))
+    records = tf.train.input_producer(images)
+    res = records.dequeue()
+    rgb_filename = res[0]
+    depth_filename = res[1]
+    images, depths, _, _ = ds.filenames_to_batch(rgb_filename, depth_filename)
+    config = tf.ConfigProto(
+        device_count={'GPU': 0}
+    )
+    with tf.Session(config=config) as sess:
+        coord = tf.train.Coordinator()
+        threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+        batch_rgb, batch_depth = sess.run(
+            [images, depths])
+        coord.request_stop()
+        coord.join(threads)
+    print('evaluation dataset loaded')
 
+    # batch_rgb = np.zeros((len(images), dataset.IMAGE_HEIGHT, dataset.IMAGE_WIDTH, 3))
+    # batch_depth = np.zeros((len(images), dataset.TARGET_HEIGHT, dataset.TARGET_WIDTH, 1))
+    # for i, (rgb_name, depth_name) in enumerate(images):
+    #     rgb_img = Image.open(rgb_name)
+    #     rgb_img = rgb_img.resize((dataset.IMAGE_WIDTH, dataset.IMAGE_HEIGHT), Image.ANTIALIAS)
+    #     image_rgb = np.asarray(rgb_img)
+    #     batch_rgb[i, :, :, :] = image_rgb
+    #
+    #     depth_img = Image.open(depth_name)
+    #     depth_img = depth_img.resize((dataset.TARGET_WIDTH, dataset.TARGET_HEIGHT), Image.ANTIALIAS)
+    #     image_depth = np.asarray(depth_img)
+    #     batch_depth[i, :, :, 0] = image_depth
 
-    x = PrettyTable(get_evaluation_names())
+    for i in range(Network.BATCH_SIZE):
+        im = Image.fromarray(batch_rgb[i, :, :, :].astype(np.uint8))
+        im.save("evaluate/orig-rgb-{}.png".format(i))
+        im = Image.fromarray(batch_depth[i, :, :, :].astype(np.uint8))
+        im.save("evaluate/orig-depth-{}.png".format(i))
+
+    column_names = get_evaluation_names()
+    column_names.append('name')
+    x = PrettyTable(column_names)
+
     for model_name, needs_conv in model_names:
-        accuracies = evaluate_model(model_name, needs_conv, batch_rgb, batch_depth)
-        x.add_row(accuracies)
+        pred_img, accuracies = evaluate_model(model_name, needs_conv, batch_rgb, batch_depth)
+        accuracies['name'] = model_name
+        x.add_row(accuracies.values())
+
+        # saving images
+        for i in range(Network.BATCH_SIZE):
+            im = Image.fromarray(pred_img)
+            im.save("evaluate/predicted-{}-{}.png".format(i, pred_img))
 
     print(x)

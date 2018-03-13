@@ -23,7 +23,8 @@ class DataSet:
     def __init__(self, batch_size):
         self.batch_size = batch_size
 
-    def load_params(self, train_file_path):
+    @staticmethod
+    def load_params(train_file_path):
         filenames = np.recfromcsv(train_file_path, delimiter=',', dtype=None)
         depths = np.zeros((TARGET_HEIGHT, TARGET_WIDTH, len(filenames)))
         for i, (rgb_name, depth_name) in enumerate(filenames):
@@ -33,11 +34,7 @@ class DataSet:
             data = np.asarray(img, dtype="int32")
             depths[:, :, i] = data
 
-    def csv_inputs(self, csv_file_path):
-        filename_queue = tf.train.string_input_producer([csv_file_path], shuffle=True)
-        reader = tf.TextLineReader()
-        _, serialized_example = reader.read(filename_queue)
-        filename, depth_filename = tf.decode_csv(serialized_example, [["path"], ["annotation"]])
+    def filenames_to_batch(self, filename, depth_filename):
         # input
         jpg = tf.read_file(filename)
         image = tf.image.decode_jpeg(jpg, channels=3)
@@ -63,6 +60,13 @@ class DataSet:
             min_after_dequeue=MIN_DEQUE_EXAMPLES)
         return images, depths, depth_bins, invalid_depths
 
+    def csv_inputs(self, csv_file_path):
+        filename_queue = tf.train.string_input_producer([csv_file_path], shuffle=True)
+        reader = tf.TextLineReader()
+        _, serialized_example = reader.read(filename_queue)
+        filename, depth_filename = tf.decode_csv(serialized_example, [["path"], ["annotation"]])
+        return self.filenames_to_batch(filename, depth_filename)
+
     @staticmethod
     def discretize_depth(depth):
         d_min = tf.constant(D_MIN, dtype=tf.float32)
@@ -86,7 +90,8 @@ class DataSet:
                                                                                    tf.int8)
         return depth_discretized
 
-    def discretized_to_depth(self, depth_bins):
+    @staticmethod
+    def discretized_to_depth(depth_bins):
         weights = np.array(range(DEPTH_DIM)) * Q + np.log(D_MIN)
         mask = np.tile(weights, (TARGET_HEIGHT, TARGET_WIDTH, 1))
         depth = np.exp(np.sum(np.multiply(mask, depth_bins), axis=2))
