@@ -5,6 +5,7 @@ import numpy as np
 import tensorflow as tf
 
 import dataset
+import metrics_tf
 import train_operation
 from dataset import DataSet
 import train_operation as op
@@ -38,7 +39,7 @@ COARSE_DIR = "coarse"
 PREDICT_DIR = os.path.join('predict', current_time)
 CHECKPOINT_DIR = os.path.join('checkpoint', current_time)  # Directory name to save the checkpoints
 LOGS_DIR = 'logs'
-GPU_IDX = [3]
+GPU_IDX = [1]
 # WEIGHTS_REGULARIZER = slim.l2_regularizer(CONV_WEIGHT_DECAY)
 WEIGHTS_REGULARIZER = None
 
@@ -50,13 +51,10 @@ class Network(object):
         self.saver = None
         self.x = None
         self.y = None
-        self.y_invalid = None
         self.images = None
         self.images_test = None
         self.depths = None
         self.depths_test = None
-        self.invalid_depths = None
-        self.invalid_depths_test = None
         self.depth_bins = None
         self.depth_bins_test = None
 
@@ -207,6 +205,8 @@ class Network(object):
                                              normalizer_fn=None, activation_fn=None, scope='deconvFinal')
 
                 probs = slim.softmax(conv, 'softmaxFinal')
+                probs = tf.identity(probs, 'inference')
+                conv = tf.identity(conv, 'logits')
                 return probs, conv
 
     def loss(self, logits):
@@ -214,7 +214,6 @@ class Network(object):
         W = dataset.TARGET_WIDTH
         # size is depth dim + 1, because 1 layer is for too distant points, outside of desired area
         self.y = tf.placeholder(tf.float32, shape=[None, H, W, dataset.DEPTH_DIM + 1], name='y')
-        self.y_invalid = tf.placeholder(tf.float32, shape=[None, H, W, 1], name='y_invalid')
 
         print('labels shape:', self.y.shape)
         print('logits shape:', logits.shape)
@@ -223,6 +222,17 @@ class Network(object):
         tf.summary.scalar("cost", cost)
 
         return cost
+
+    def metrics(self, estimated_depths_images):
+        treshold = metrics_tf.accuracy_under_treshold(self.y, estimated_depths_images, 1.25)
+        mre = metrics_tf.mean_relative_error(self.y, estimated_depths_images)
+        rms = metrics_tf.root_mean_squared_error(self.y, estimated_depths_images)
+        rmls = metrics_tf.root_mean_squared_log_error(self.y, estimated_depths_images)
+
+        tf.summary.scalar("under treshold 1.25", treshold)
+        tf.summary.scalar("mean relative error", mre)
+        tf.summary.scalar("root mean square error", rms)
+        tf.summary.scalar("root mean log square error", rmls)
 
     @staticmethod
     def bins_to_depth(depth_bins):
@@ -243,8 +253,8 @@ class Network(object):
         data_set = DataSet(BATCH_SIZE)
         data_set.load_params(TRAIN_FILE)
         global_step = tf.Variable(0, trainable=False)
-        self.images, self.depths, self.depth_bins, self.invalid_depths = data_set.csv_inputs(TRAIN_FILE)
-        self.images_test, self.depths_test, self.depth_bins_test, self.invalid_depths_test = data_set.csv_inputs(
+        self.images, self.depths, self.depth_bins = data_set.csv_inputs(TRAIN_FILE)
+        self.images_test, self.depths_test, self.depth_bins_test, = data_set.csv_inputs(
             TEST_FILE)
         estimated_depths, estimated_logits = self.inference()
         loss = self.loss(estimated_depths)
@@ -261,6 +271,7 @@ class Network(object):
         #     tf.summary.histogram(name, variable)
 
         estimated_depths_images = self.bins_to_depth(estimated_depths)
+        self.metrics(estimated_depths_images)
 
         tf.summary.image('input_images', self.images)
         tf.summary.image('ground_truth_depths', self.depths)
@@ -303,15 +314,14 @@ class Network(object):
                 for epoch in range(MAX_EPOCHS):
                     for i in range(num_batches_per_epoch):
                         # sending images to sess.run so new batch is loaded
-                        images, depths, invalid_depths = self.sess.run(
-                            [self.images, self.depth_bins, self.invalid_depths])
+                        images, depths, gt_images = self.sess.run(
+                            [self.images, self.depth_bins, self.depths])
                         # training itself
                         _, loss_value, predicted_depths, summary_str = self.sess.run(
                             [train_op, loss, estimated_depths_images, summary],
                             feed_dict={
                                 self.x: images,
                                 self.y: depths,
-                                self.y_invalid: invalid_depths,
                             }
                         )
                         if index % 10 == 0:
@@ -321,14 +331,13 @@ class Network(object):
                                 feed_dict={
                                     self.x: images,
                                     self.y: depths,
-                                    self.y_invalid: invalid_depths,
                                 }
                             )
                             writer.add_summary(summary_str, index)
 
                             # loading new test batch
-                            images_test, depths_test, invalid_depths_test = self.sess.run(
-                                [self.images_test, self.depth_bins_test, self.invalid_depths_test])
+                            images_test, depths_test = self.sess.run(
+                                [self.images_test, self.depth_bins_test])
 
                             # testing itself
                             test_loss_value, test_predicted_depths = self.sess.run(
@@ -336,7 +345,6 @@ class Network(object):
                                 feed_dict={
                                     self.x: images_test,
                                     self.y: depths_test,
-                                    self.y_invalid: invalid_depths_test,
                                 }
                             )
                             print(

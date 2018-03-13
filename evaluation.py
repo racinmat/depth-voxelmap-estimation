@@ -48,13 +48,20 @@ def evaluate_model(model_name, needs_conversion, rgb_img, truth_img):
                 model = Network.Network.bins_to_depth(model)
             pred_img = inference(model, input, rgb_img, graph, sess)
 
-    return pred_img, {
-        'treshold_1.25': metrics_np.accuracy_under_treshold(truth_img, pred_img, 1.25),
-        'mean_rel_err': metrics_np.mean_relative_error(truth_img, pred_img),
-        'rms': metrics_np.root_mean_squared_error(truth_img, pred_img),
-        'rms_log': metrics_np.root_mean_squared_log_error(truth_img, pred_img),
-        'log10_err': metrics_np.log10_error(truth_img, pred_img),
-    }
+    # return pred_img, {
+    #     'treshold_1.25': metrics_np.accuracy_under_treshold(truth_img, pred_img, 1.25),
+    #     'mean_rel_err': metrics_np.mean_relative_error(truth_img, pred_img),
+    #     'rms': metrics_np.root_mean_squared_error(truth_img, pred_img),
+    #     'rms_log': metrics_np.root_mean_squared_log_error(truth_img, pred_img),
+    #     'log10_err': metrics_np.log10_error(truth_img, pred_img),
+    # }
+    return pred_img, [
+        metrics_np.accuracy_under_treshold(truth_img, pred_img, 1.25),
+        metrics_np.mean_relative_error(truth_img, pred_img),
+        metrics_np.root_mean_squared_error(truth_img, pred_img),
+        metrics_np.root_mean_squared_log_error(truth_img, pred_img),
+        metrics_np.log10_error(truth_img, pred_img),
+    ]
 
 
 def get_evaluation_names():
@@ -87,7 +94,7 @@ if __name__ == '__main__':
     res = records.dequeue()
     rgb_filename = res[0]
     depth_filename = res[1]
-    images, depths, _, _ = ds.filenames_to_batch(rgb_filename, depth_filename)
+    images, depths, _ = ds.filenames_to_batch(rgb_filename, depth_filename)
     config = tf.ConfigProto(
         device_count={'GPU': 0}
     )
@@ -118,6 +125,10 @@ if __name__ == '__main__':
         im.save("evaluate/orig-rgb-{}.png".format(i))
 
         depth = batch_depth[i, :, :, :]
+        if len(depth.shape) == 3 and depth.shape[2] > 1:
+            raise Exception('oh, boi, shape is going wild', depth.shape)
+        depth = depth[:, :, 0]
+
         if np.max(depth) != 0:
             depth = (depth / np.max(depth)) * 255.0
         else:
@@ -131,17 +142,23 @@ if __name__ == '__main__':
 
     for model_name, needs_conv in model_names:
         pred_img, accuracies = evaluate_model(model_name, needs_conv, batch_rgb, batch_depth)
-        accuracies['name'] = model_name
-        x.add_row(accuracies.values())
+        # accuracies['name'] = model_name
+        # x.add_row(accuracies.values())
+        accuracies.append(model_name)
+        x.add_row(accuracies)
 
         # saving images
         for i in range(Network.BATCH_SIZE):
-            if np.max(pred_img) != 0:
-                depth = (pred_img / np.max(pred_img)) * 255.0
+            depth = pred_img[i, :, :, :]
+            if len(depth.shape) == 3 and depth.shape[2] > 1:
+                raise Exception('oh, boi, shape is going wild', depth.shape)
+            depth = depth[:, :, 0]
+
+            if np.max(depth) != 0:
+                depth = (depth / np.max(depth)) * 255.0
             else:
-                depth = pred_img * 255.0
+                depth = depth * 255.0
             im = Image.fromarray(depth.astype(np.uint8), mode="L")
-            im = Image.fromarray(pred_img)
-            im.save("evaluate/predicted-{}-{}.png".format(i, pred_img))
+            im.save("evaluate/predicted-{}-{}.png".format(i, model_name))
 
     print(x)

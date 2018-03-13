@@ -50,15 +50,14 @@ class DataSet:
         depth = tf.image.resize_images(depth, (TARGET_HEIGHT, TARGET_WIDTH))
         depth_bins = self.discretize_depth(depth)
 
-        invalid_depth = tf.sign(depth)
         # generate batch
-        images, depths, depth_bins, invalid_depths = tf.train.shuffle_batch(
-            [image, depth, depth_bins, invalid_depth],
+        images, depths, depth_bins = tf.train.shuffle_batch(
+            [image, depth, depth_bins],
             batch_size=self.batch_size,
             num_threads=4,
             capacity=MIN_DEQUE_EXAMPLES + 5 * self.batch_size,
             min_after_dequeue=MIN_DEQUE_EXAMPLES)
-        return images, depths, depth_bins, invalid_depths
+        return images, depths, depth_bins
 
     def csv_inputs(self, csv_file_path):
         filename_queue = tf.train.string_input_producer([csv_file_path], shuffle=True)
