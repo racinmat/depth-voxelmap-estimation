@@ -122,7 +122,7 @@ if __name__ == '__main__':
             depth = (depth / np.max(depth)) * 255.0
         else:
             depth = depth * 255.0
-            im = Image.fromarray(depth.astype(np.uint8), mode="L")
+        im = Image.fromarray(depth.astype(np.uint8), mode="L")
         im.save("evaluate/orig-depth-{}.png".format(i))
 
     column_names = get_evaluation_names()
@@ -136,6 +136,11 @@ if __name__ == '__main__':
 
         # saving images
         for i in range(Network.BATCH_SIZE):
+            if np.max(pred_img) != 0:
+                depth = (pred_img / np.max(pred_img)) * 255.0
+            else:
+                depth = pred_img * 255.0
+            im = Image.fromarray(depth.astype(np.uint8), mode="L")
             im = Image.fromarray(pred_img)
             im.save("evaluate/predicted-{}-{}.png".format(i, pred_img))
 

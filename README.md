@@ -13,3 +13,5 @@ Runs:
  - 2018-03-11--14-40-26 same as above, but initial learning rate is 1e-5
  - 2018-03-11--15-30-10 same as above, but initial learning rate is 1e-4, decay is correct, *0.1 (dividing by 10)
  - 2018-03-11--16-59-14 same as above, but loss from the other paper, Estimating Depth from Monocular Images... tried
+ 
+ In train-nyu and test-nyu, data from train are split in ratio 80:20

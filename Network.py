@@ -29,8 +29,10 @@ BATCH_SIZE = 8
 
 # TRAIN_FILE = "train.csv"
 # TEST_FILE = "test.csv"
-TRAIN_FILE = "train-small.csv"
-TEST_FILE = "train-small.csv"
+# TRAIN_FILE = "train-small.csv"
+# TEST_FILE = "train-small.csv"
+TRAIN_FILE = "train-nyu.csv"
+TEST_FILE = "test-nyu.csv"
 
 COARSE_DIR = "coarse"
 PREDICT_DIR = os.path.join('predict', current_time)
