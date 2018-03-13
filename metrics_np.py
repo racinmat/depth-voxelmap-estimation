@@ -5,7 +5,7 @@ def accuracy_under_treshold(truth_img, predicted_img, treshold=1.25):
     n_pixels = np.prod(truth_img.shape)
     delta = np.maximum(predicted_img / truth_img, truth_img / predicted_img)
     lower = delta < treshold
-    ratio = np.sum(np.cast(lower, np.float32)) / n_pixels
+    ratio = np.sum(lower.astype(np.float32)) / n_pixels
     return ratio
 
 
