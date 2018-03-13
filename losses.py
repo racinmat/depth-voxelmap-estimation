@@ -27,11 +27,13 @@ def tf_labels_to_info_gain(labels, logits, alpha=0.2):
 
 
 def information_gain_loss(labels, logits, alpha=0.2):
-    return tf.reduce_mean(
+    loss = tf.reduce_mean(
         tf.nn.softmax_cross_entropy_with_logits(
             labels=tf_labels_to_info_gain(labels=labels, logits=logits, alpha=alpha),
             logits=logits))
+    return tf.identity(loss, 'loss')
 
 
 def softmax_loss(labels, logits):
-    return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
+    loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
+    return tf.identity(loss, 'loss')

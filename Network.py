@@ -234,6 +234,21 @@ class Network(object):
         tf.summary.scalar("root mean square error", rms)
         tf.summary.scalar("root mean log square error", rmls)
 
+    def test_metrics(self, cost, estimated_depths_images):
+        treshold = metrics_tf.accuracy_under_treshold(self.y, estimated_depths_images, 1.25)
+        mre = metrics_tf.mean_relative_error(self.y, estimated_depths_images)
+        rms = metrics_tf.root_mean_squared_error(self.y, estimated_depths_images)
+        rmls = metrics_tf.root_mean_squared_log_error(self.y, estimated_depths_images)
+
+        sum1 = tf.summary.scalar("test-cost", cost)
+        sum2 = tf.summary.scalar("test-under treshold 1.25", treshold)
+        sum3 = tf.summary.scalar("test-mean relative error", mre)
+        sum4 = tf.summary.scalar("test-root mean square error", rms)
+        sum5 = tf.summary.scalar("test-root mean log square error", rmls)
+        sum6 = tf.summary.image("test-predicted_depths", estimated_depths_images)
+        return tf.summary.merge([sum1, sum2, sum3, sum4, sum5, sum6])
+
+
     @staticmethod
     def bins_to_depth(depth_bins):
         weights = np.array(range(dataset.DEPTH_DIM)) * dataset.Q + np.log(dataset.D_MIN)
@@ -282,10 +297,11 @@ class Network(object):
 
         tf.summary.image('predicted_invalid', tf.expand_dims(estimated_depths[:, :, :, dataset.DEPTH_DIM], 3))
 
+        print('model prepared, going to train')
         return data_set, loss, estimated_depths, train_op, estimated_depths_images
 
     def train(self):
-        with tf.Graph().as_default():
+        with tf.Graph().as_default() as g:
             data_set, loss, estimated_depths, train_op, estimated_depths_images = self.prepare()
 
             # Session
@@ -294,6 +310,9 @@ class Network(object):
                 self.initialize_by_resnet()
                 # parameters
                 summary = tf.summary.merge_all()  # merge all summaries to dump them for tensorboard
+
+                test_summary = self.test_metrics(g.get_tensor_by_name('network/loss:0'), estimated_depths_images)
+
                 writer = tf.summary.FileWriter(os.path.join(LOGS_DIR, current_time), self.sess.graph)
 
                 for variable in tf.trainable_variables():
@@ -340,13 +359,14 @@ class Network(object):
                                 [self.images_test, self.depth_bins_test])
 
                             # testing itself
-                            test_loss_value, test_predicted_depths = self.sess.run(
-                                [loss, estimated_depths_images],
+                            test_loss_value, test_predicted_depths, test_summary_str = self.sess.run(
+                                [loss, estimated_depths_images, test_summary],
                                 feed_dict={
                                     self.x: images_test,
                                     self.y: depths_test,
                                 }
                             )
+                            writer.add_summary(test_summary_str, index)
                             print(
                                 "%s: %d[epoch]: %d[iteration]: train loss %f" % (datetime.now(), epoch, i, loss_value))
                             print(
