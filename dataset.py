@@ -12,7 +12,7 @@ TARGET_WIDTH = 160
 DEPTH_DIM = 100
 # DEPTH_DIM = 10
 
-D_MIN = 0.2
+D_MIN = 0.5
 D_MAX = 50
 Q = (np.log(D_MAX) - np.log(D_MIN)) / (DEPTH_DIM - 1)
 
