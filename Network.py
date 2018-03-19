@@ -32,8 +32,10 @@ BATCH_SIZE = 8
 # TEST_FILE = "test.csv"
 # TRAIN_FILE = "train-small.csv"
 # TEST_FILE = "train-small.csv"
-TRAIN_FILE = "train-nyu.csv"
-TEST_FILE = "test-nyu.csv"
+# TRAIN_FILE = "train-nyu.csv"
+# TEST_FILE = "test-nyu.csv"
+TRAIN_FILE = "train-gta.csv"
+TEST_FILE = "test-gta.csv"
 
 COARSE_DIR = "coarse"
 PREDICT_DIR = os.path.join('predict', current_time)
@@ -266,7 +268,6 @@ class Network(object):
 
     def prepare(self):
         data_set = DataSet(BATCH_SIZE)
-        data_set.load_params(TRAIN_FILE)
         global_step = tf.Variable(0, trainable=False)
         self.images, self.depths, self.depth_bins = data_set.csv_inputs(TRAIN_FILE)
         self.images_test, self.depths_test, self.depth_bins_test, = data_set.csv_inputs(
@@ -280,10 +281,6 @@ class Network(object):
         for var in tf.trainable_variables():
             # print(var.op.name)
             tf.summary.histogram(var.op.name, var)
-        # trainable_vars = slim.get_variables(scope='network', collection=tf.GraphKeys.TRAINABLE_VARIABLES)
-        # for variable in trainable_vars:
-        #     name = variable.name.split(':', 1)[0]
-        #     tf.summary.histogram(name, variable)
 
         estimated_depths_images = self.bins_to_depth(estimated_depths)
         self.metrics(estimated_depths_images)
@@ -311,15 +308,9 @@ class Network(object):
                 # parameters
                 summary = tf.summary.merge_all()  # merge all summaries to dump them for tensorboard
 
-                test_summary = self.test_metrics(g.get_tensor_by_name('network/loss:0'), estimated_depths_images)
+                test_summary = self.test_metrics(g.get_tensor_by_name('loss:0'), estimated_depths_images)
 
                 writer = tf.summary.FileWriter(os.path.join(LOGS_DIR, current_time), self.sess.graph)
-
-                for variable in tf.trainable_variables():
-                    variable_name = variable.name
-                    print("parameter: %s" % variable_name)
-                    if variable_name.find("/") < 0 or variable_name.count("/") != 1:
-                        continue
 
                 # train
                 coord = tf.train.Coordinator()
