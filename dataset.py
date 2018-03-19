@@ -18,6 +18,10 @@ Q = (np.log(D_MAX) - np.log(D_MIN)) / (DEPTH_DIM - 1)
 
 MIN_DEQUE_EXAMPLES = 500  # should be relatively big compared to dataset, see https://stackoverflow.com/questions/43028683/whats-going-on-in-tf-train-shuffle-batch-and-tf-train-batch
 
+IS_GTA_DATA = True
+THRESHOLD = 1000
+MAXIMUM = np.iinfo(np.uint16).max
+
 
 class DataSet:
     def __init__(self, batch_size):
@@ -48,6 +52,8 @@ class DataSet:
         # resize
         image = tf.image.resize_images(image, (IMAGE_HEIGHT, IMAGE_WIDTH))
         depth = tf.image.resize_images(depth, (TARGET_HEIGHT, TARGET_WIDTH))
+        if IS_GTA_DATA:
+            depth = self.depth_from_integer_range(depth)
         depth_bins = self.discretize_depth(depth)
 
         # generate batch
@@ -119,3 +125,10 @@ class DataSet:
             depth_pil = Image.fromarray(np.uint8(ra_depth), mode="L")
             depth_name = "%s/%05d.png" % (output_dir, i)
             depth_pil.save(depth_name)
+
+    @staticmethod
+    def depth_from_integer_range(depth):
+        tf.cast(depth, dtype=tf.float32)
+        # then we rescale to integer32
+        ratio = THRESHOLD / MAXIMUM
+        return depth * tf.constant(ratio)
