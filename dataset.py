@@ -38,22 +38,31 @@ class DataSet:
             data = np.asarray(img, dtype="int32")
             depths[:, :, i] = data
 
-    def filenames_to_batch(self, filename, depth_filename):
-        # input
+    @staticmethod
+    def filename_to_input_image(filename):
         jpg = tf.read_file(filename)
         image = tf.image.decode_jpeg(jpg, channels=3)
         image = tf.cast(image, tf.float32)
-        # target
-        depth_png = tf.read_file(depth_filename)
+        image = tf.image.resize_images(image, (IMAGE_HEIGHT, IMAGE_WIDTH))
+        return image
+
+    @staticmethod
+    def filename_to_target_image(filename):
+        depth_png = tf.read_file(filename)
         depth = tf.image.decode_png(depth_png, channels=1)
         depth = tf.cast(depth, tf.float32)
-        depth = tf.div(depth, [255.0])
+        depth = depth / 255.0
         # depth = tf.cast(depth, tf.int64)
-        # resize
-        image = tf.image.resize_images(image, (IMAGE_HEIGHT, IMAGE_WIDTH))
         depth = tf.image.resize_images(depth, (TARGET_HEIGHT, TARGET_WIDTH))
         if IS_GTA_DATA:
-            depth = self.depth_from_integer_range(depth)
+            depth = DataSet.depth_from_integer_range(depth)
+        return depth
+
+    def filenames_to_batch(self, filename, depth_filename):
+        # input
+        image = self.filename_to_input_image(filename)
+        # target
+        depth = self.filename_to_target_image(depth_filename)
         depth_bins = self.discretize_depth(depth)
 
         # generate batch

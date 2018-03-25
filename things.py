@@ -29,7 +29,7 @@ def output_predict(depths, images, depths_discretized, depths_reconstructed, out
         depth_name = "%s/%03d.png" % (output_dir, i)
         depth_pil.save(depth_name)
 
-        for j in range(DEPTH_DIM):
+        for j in range(dataset.DEPTH_DIM):
             ra_depth = depth_discretized[:, :, j] * 255.0
             depth_discr_pil = Image.fromarray(np.uint8(ra_depth), mode="L")
             depth_discr_name = "%s/%03d_%03d_discr.png" % (output_dir, i, j)
@@ -96,7 +96,6 @@ def labels_to_info_gain(labels, logits, alpha=0.2):
 
 
 def tf_labels_to_info_gain(labels, logits, alpha=0.2):
-    # int 16 stačí, protože je to index binu pro hloubku
     last_axis = len(logits.shape) - 1
     label_idx = tf.expand_dims(tf.argmax(labels, axis=last_axis), 0)
     label_idx = tf.cast(label_idx, dtype=tf.int32)
