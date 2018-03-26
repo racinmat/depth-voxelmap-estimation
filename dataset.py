@@ -49,13 +49,11 @@ class DataSet:
     @staticmethod
     def filename_to_target_image(filename):
         depth_png = tf.read_file(filename)
-        depth = tf.image.decode_png(depth_png, channels=1)
+        depth = tf.image.decode_png(depth_png, channels=1, dtype=tf.uint16)
         depth = tf.cast(depth, tf.float32)
-        depth = depth / 255.0
-        # depth = tf.cast(depth, tf.int64)
-        depth = tf.image.resize_images(depth, (TARGET_HEIGHT, TARGET_WIDTH))
         if IS_GTA_DATA:
             depth = DataSet.depth_from_integer_range(depth)
+        depth = tf.image.resize_images(depth, (TARGET_HEIGHT, TARGET_WIDTH))
         return depth
 
     def filenames_to_batch(self, filename, depth_filename):

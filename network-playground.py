@@ -11,6 +11,7 @@ import pickle
 from shutil import copyfile
 from os.path import join
 
+
 def output_image(image, name, mode='RGB'):
     pil_image = Image.fromarray(np.uint8(image), mode=mode)
     pil_image.save(name)
@@ -43,15 +44,15 @@ def output_predictions(images_dict, multi_images_dict, output_dir):
 
 
 if __name__ == '__main__':
-    # filename = 'ml-datasets/2018-03-07--15-18-12--849.jpg'
-    # depth_filename = 'ml-datasets/2018-03-07--15-18-12--849.png'
-    # dataset.IS_GTA_DATA = True
-    # out_name = 'output-gta'
+    filename = 'ml-datasets/2018-03-07--15-18-12--849.jpg'
+    depth_filename = 'ml-datasets/2018-03-07--15-18-12--849.png'
+    dataset.IS_GTA_DATA = True
+    out_name = 'output-gta'
 
-    filename = 'data/nyu_datasets/00016.jpg'
-    depth_filename = 'data/nyu_datasets/00016.png'
-    dataset.IS_GTA_DATA = False
-    out_name = 'output-nyu'
+    # filename = 'data/nyu_datasets/00016.jpg'
+    # depth_filename = 'data/nyu_datasets/00016.png'
+    # dataset.IS_GTA_DATA = False
+    # out_name = 'output-nyu'
 
     checkpoint_model = 'checkpoint/2018-03-19--04-14-04'
     out_dir = 'inspections'
@@ -61,6 +62,10 @@ if __name__ == '__main__':
             image = DataSet.filename_to_input_image(filename)
             depth = DataSet.filename_to_target_image(depth_filename)
             depth_discretized = DataSet.discretize_depth(depth)
+
+            depth_png = tf.read_file(depth_filename)
+            depth_raw = tf.image.decode_png(depth_png, channels=1, dtype=tf.uint16)
+            depth_raw = tf.cast(depth_raw, tf.float32)
 
             batch_size = 1
             # generate batch
@@ -87,8 +92,8 @@ if __name__ == '__main__':
             coord = tf.train.Coordinator()
             threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
-            images_val, depths_val, depths_discretized_val, depth_reconstructed_val = sess.run(
-                [images, depths, depths_discretized, depth_reconstructed])
+            images_val, depths_val, depths_discretized_val, depth_reconstructed_val, depth_raw_val = sess.run(
+                [images, depths, depths_discretized, depth_reconstructed, depth_raw])
             estimated_depths_val, estimated_depths_images_val = sess.run([estimated_depths, estimated_depths_images],
                                                                          feed_dict={
                                                                              input: images_val,
@@ -104,12 +109,13 @@ if __name__ == '__main__':
                 '%s/%03d_output_%03d_discr.png': estimated_depths_val,
             }, 'predict-test-nyu')
 
-            with open(join(out_dir, out_name+'.rick'), 'wb+') as f:
-                pickle.dump([images_val, depths_val, estimated_depths_images_val, depth_reconstructed_val, depths_discretized_val, estimated_depths_val], f)
+            with open(join(out_dir, out_name + '.rick'), 'wb+') as f:
+                pickle.dump([images_val, depths_val, estimated_depths_images_val, depth_reconstructed_val,
+                             depths_discretized_val, estimated_depths_val, depth_raw_val], f)
 
             # copy original files to show any problems with loading and preprocessing images
-            copyfile(filename, join(out_dir, out_name+'-in-image.jpg'))
-            copyfile(depth_filename, join(out_dir, out_name+'-in-depth.png'))
+            copyfile(filename, join(out_dir, out_name + '-in-image.jpg'))
+            copyfile(depth_filename, join(out_dir, out_name + '-in-depth.png'))
 
             coord.request_stop()
             coord.join(threads)
