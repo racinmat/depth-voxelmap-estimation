@@ -250,7 +250,6 @@ class Network(object):
         sum6 = tf.summary.image("test-predicted_depths", estimated_depths_images)
         return tf.summary.merge([sum1, sum2, sum3, sum4, sum5, sum6])
 
-
     @staticmethod
     def bins_to_depth(depth_bins):
         weights = np.array(range(dataset.DEPTH_DIM)) * dataset.Q + np.log(dataset.D_MIN)
@@ -334,8 +333,8 @@ class Network(object):
                                 self.y: depths,
                             }
                         )
+                        # updating summary
                         if index % 10 == 0:
-                            # updating summary
                             summary_str = self.sess.run(
                                 summary,
                                 feed_dict={
@@ -345,6 +344,7 @@ class Network(object):
                             )
                             writer.add_summary(summary_str, index)
 
+                        if index % 20 == 0:
                             # loading new test batch
                             images_test, depths_test = self.sess.run(
                                 [self.images_test, self.depth_bins_test])
@@ -357,6 +357,7 @@ class Network(object):
                                     self.y: depths_test,
                                 }
                             )
+
                             writer.add_summary(test_summary_str, index)
                             print(
                                 "%s: %d[epoch]: %d[iteration]: train loss %f" % (datetime.now(), epoch, i, loss_value))
