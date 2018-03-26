@@ -7,7 +7,9 @@ import os
 import Network
 import dataset
 from dataset import DataSet
-
+import pickle
+from shutil import copyfile
+from os.path import join
 
 def output_image(image, name, mode='RGB'):
     pil_image = Image.fromarray(np.uint8(image), mode=mode)
@@ -40,15 +42,22 @@ def output_predictions(images_dict, multi_images_dict, output_dir):
                 output_image(image, depth_discr_name, 'L')
 
 
-
 if __name__ == '__main__':
-    filename = 'ml-datasets/2018-03-07--15-18-12--849.jpg'
-    depth_filename = 'ml-datasets/2018-03-07--15-18-12--849.png'
+    # filename = 'ml-datasets/2018-03-07--15-18-12--849.jpg'
+    # depth_filename = 'ml-datasets/2018-03-07--15-18-12--849.png'
+    # dataset.IS_GTA_DATA = True
+    # out_name = 'output-gta'
+
+    filename = 'data/nyu_datasets/00016.jpg'
+    depth_filename = 'data/nyu_datasets/00016.png'
+    dataset.IS_GTA_DATA = False
+    out_name = 'output-nyu'
+
     checkpoint_model = 'checkpoint/2018-03-19--04-14-04'
+    out_dir = 'inspections'
 
     with tf.Graph().as_default() as graph:
         with tf.Session() as sess:
-            dataset.IS_GTA_DATA = True
             image = DataSet.filename_to_input_image(filename)
             depth = DataSet.filename_to_target_image(depth_filename)
             depth_discretized = DataSet.discretize_depth(depth)
@@ -67,8 +76,8 @@ if __name__ == '__main__':
             checkpoint = tf.train.get_checkpoint_state(checkpoint_model)
             if not checkpoint or not checkpoint.model_checkpoint_path:
                 raise Exception('not any checkpoint found')
-            saver = tf.train.import_meta_graph(checkpoint.model_checkpoint_path+'.meta')
-            tf.train.import_meta_graph(checkpoint.model_checkpoint_path+'.meta')
+            saver = tf.train.import_meta_graph(checkpoint.model_checkpoint_path + '.meta')
+            tf.train.import_meta_graph(checkpoint.model_checkpoint_path + '.meta')
             saver.restore(sess, checkpoint.model_checkpoint_path)
 
             input = graph.get_tensor_by_name('network/x:0')
@@ -85,15 +94,22 @@ if __name__ == '__main__':
                                                                              input: images_val,
                                                                          })
 
-
             output_predictions({
                 '%s/%03d_input.png': images_val,
-                '%s/%03d_output.png': depths_val,
-                '%s/%03d_reconstructed.png': depth_reconstructed_val,
+                '%s/%03d_output_gt.png': depths_val * 255.0,
+                '%s/%03d_output.png': estimated_depths_images_val * 255.0,
+                '%s/%03d_reconstructed.png': depth_reconstructed_val * 255.0,
             }, {
                 '%s/%03d_input_%03d_discr.png': depths_discretized_val,
                 '%s/%03d_output_%03d_discr.png': estimated_depths_val,
-            }, 'predict-test')
+            }, 'predict-test-nyu')
+
+            with open(join(out_dir, out_name+'.rick'), 'wb+') as f:
+                pickle.dump([images_val, depths_val, estimated_depths_images_val, depth_reconstructed_val, depths_discretized_val, estimated_depths_val], f)
+
+            # copy original files to show any problems with loading and preprocessing images
+            copyfile(filename, join(out_dir, out_name+'-in-image.jpg'))
+            copyfile(depth_filename, join(out_dir, out_name+'-in-depth.png'))
 
             coord.request_stop()
             coord.join(threads)
