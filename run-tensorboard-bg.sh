@@ -1,3 +1,3 @@
 #!/bin/bash
 
-screen -dmSL tensorboard ./run-tensorboard.sh
+screen -dmS tensorboard -L screenlog.0 ./run-tensorboard.sh

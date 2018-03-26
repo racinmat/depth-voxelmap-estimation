@@ -7,7 +7,7 @@ fi
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64/
 
 cd ~
-source gan2/bin/activate
+source python35/bin/activate
 
 cd /mnt/datagrid/personal/racinmat/depthEstimationNN1
 

@@ -1,3 +1,3 @@
 #!/bin/bash
 
-screen -dmSL python ./run-network.sh
+screen -dmS python -L screenlog.0 ./run-network.sh
