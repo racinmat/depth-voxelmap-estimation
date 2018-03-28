@@ -373,8 +373,8 @@ class Network(object):
 
                         if index % 20 == 0:
                             # loading new test batch
-                            images_test, depths_bins_test, gt_depth_reconst_test = self.sess.run(
-                                [self.images_test, self.depth_bins_test, self.depth_reconst_test])
+                            images_test, depths_bins_test, gt_images_test, gt_depth_reconst_test = self.sess.run(
+                                [self.images_test, self.depth_bins_test, self.depths, self.depth_reconst_test])
 
                             # testing itself
                             test_loss_value, test_predicted_depths, test_summary_str = self.sess.run(
@@ -394,9 +394,9 @@ class Network(object):
                                     datetime.now(), epoch, i, test_loss_value))
                             assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
                         if index % 500 == 0:
-                            data_set.output_predict(predicted_depths, images,
+                            data_set.output_predict(predicted_depths, images, gt_images,
                                                     os.path.join(PREDICT_DIR, "iter_%05d_%05d" % (epoch, i)))
-                            data_set.output_predict(test_predicted_depths, images_test,
+                            data_set.output_predict(test_predicted_depths, images_test, gt_images_test,
                                                     os.path.join(PREDICT_DIR, "iter_%05d_%05d_test" % (epoch, i)))
                             self.save_model(self.sess, index)
 
