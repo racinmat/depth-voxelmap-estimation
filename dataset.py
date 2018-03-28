@@ -1,3 +1,5 @@
+import csv
+
 import tensorflow as tf
 from tensorflow.python.platform import gfile
 import numpy as np
@@ -17,7 +19,6 @@ D_MAX = 50
 Q = (np.log(D_MAX) - np.log(D_MIN)) / (DEPTH_DIM - 1)
 
 MIN_DEQUE_EXAMPLES = 500  # should be relatively big compared to dataset, see https://stackoverflow.com/questions/43028683/whats-going-on-in-tf-train-shuffle-batch-and-tf-train-batch
-
 IS_GTA_DATA = True
 THRESHOLD = 1000
 MAXIMUM = np.iinfo(np.uint16).max
@@ -39,6 +40,15 @@ class DataSet:
             depths[:, :, i] = data
 
     @staticmethod
+    def get_dataset_size(filename):
+        with open(filename, newline='') as csv_file:
+            file_object = csv.reader(csv_file)
+            row_count = sum(1 for row in file_object)
+        # print("dataset size is: "+str(row_count))
+        # print("dataset file name is: "+str(filename))
+        return row_count
+
+    @staticmethod
     def filename_to_input_image(filename):
         jpg = tf.read_file(filename)
         image = tf.image.decode_jpeg(jpg, channels=3)
@@ -56,20 +66,25 @@ class DataSet:
         depth = tf.image.resize_images(depth, (TARGET_HEIGHT, TARGET_WIDTH))
         return depth
 
-    def filenames_to_batch(self, filename, depth_filename):
+    def filenames_to_batch(self, filename, depth_filename, dataset_size=np.inf):
         # input
         image = self.filename_to_input_image(filename)
         # target
         depth = self.filename_to_target_image(depth_filename)
         depth_bins = self.discretize_depth(depth)
 
+        # size = min(MIN_DEQUE_EXAMPLES, TOTAL_DATASET_SIZE)
+        # capacity cannot be higher than dataset size, because then it throws exceptions
+        min_deque_size = min(MIN_DEQUE_EXAMPLES + 5 * self.batch_size, dataset_size)
+        min_after_deque = min(MIN_DEQUE_EXAMPLES, dataset_size - 1)
+
         # generate batch
         images, depths, depth_bins = tf.train.shuffle_batch(
             [image, depth, depth_bins],
             batch_size=self.batch_size,
             num_threads=4,
-            capacity=MIN_DEQUE_EXAMPLES + 5 * self.batch_size,
-            min_after_dequeue=MIN_DEQUE_EXAMPLES)
+            capacity=min_deque_size,
+            min_after_dequeue=min_after_deque)
         return images, depths, depth_bins
 
     def csv_inputs(self, csv_file_path):
@@ -77,7 +92,7 @@ class DataSet:
         reader = tf.TextLineReader()
         _, serialized_example = reader.read(filename_queue)
         filename, depth_filename = tf.decode_csv(serialized_example, [["path"], ["annotation"]])
-        return self.filenames_to_batch(filename, depth_filename)
+        return self.filenames_to_batch(filename, depth_filename, self.get_dataset_size(csv_file_path))
 
     @staticmethod
     def discretize_depth(depth):

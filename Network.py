@@ -34,14 +34,17 @@ BATCH_SIZE = 8
 # TEST_FILE = "train-small.csv"
 # TRAIN_FILE = "train-nyu.csv"
 # TEST_FILE = "test-nyu.csv"
-TRAIN_FILE = "train-gta.csv"
-TEST_FILE = "test-gta.csv"
+# TRAIN_FILE = "train-gta.csv"
+# TEST_FILE = "test-gta.csv"
+# for trying to overfit
+TRAIN_FILE = "train-gta-small.csv"
+TEST_FILE = "train-gta-small.csv"
 
 COARSE_DIR = "coarse"
 PREDICT_DIR = os.path.join('predict', current_time)
 CHECKPOINT_DIR = os.path.join('checkpoint', current_time)  # Directory name to save the checkpoints
 LOGS_DIR = 'logs'
-GPU_IDX = [1]
+GPU_IDX = [3]
 # WEIGHTS_REGULARIZER = slim.l2_regularizer(CONV_WEIGHT_DECAY)
 WEIGHTS_REGULARIZER = None
 
