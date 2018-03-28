@@ -5,6 +5,8 @@ from tensorflow.python.platform import gfile
 import numpy as np
 from PIL import Image
 
+from Network import Network
+
 IMAGE_HEIGHT = 240
 IMAGE_WIDTH = 320
 TARGET_HEIGHT = 120
@@ -72,6 +74,7 @@ class DataSet:
         # target
         depth = self.filename_to_target_image(depth_filename)
         depth_bins = self.discretize_depth(depth)
+        depth_reconstructed = self.bins_to_depth(depth_bins)
 
         # size = min(MIN_DEQUE_EXAMPLES, TOTAL_DATASET_SIZE)
         # capacity cannot be higher than dataset size, because then it throws exceptions
@@ -79,13 +82,13 @@ class DataSet:
         min_after_deque = min(MIN_DEQUE_EXAMPLES, dataset_size - 1)
 
         # generate batch
-        images, depths, depth_bins = tf.train.shuffle_batch(
-            [image, depth, depth_bins],
+        images, depths, depths_bins, depths_reconstructed = tf.train.shuffle_batch(
+            [image, depth, depth_bins, depth_reconstructed],
             batch_size=self.batch_size,
             num_threads=4,
             capacity=min_deque_size,
             min_after_dequeue=min_after_deque)
-        return images, depths, depth_bins
+        return images, depths, depths_bins, depths_reconstructed
 
     def csv_inputs(self, csv_file_path):
         filename_queue = tf.train.string_input_producer([csv_file_path], shuffle=True)
@@ -118,7 +121,8 @@ class DataSet:
         return depth_discretized
 
     @staticmethod
-    def discretized_to_depth(depth_bins):
+    def bins_to_depth(depth_bins):
+        # same as Network.bins_to_depth, but only for one image
         weights = np.array(range(DEPTH_DIM)) * Q + np.log(D_MIN)
         mask = np.tile(weights, (TARGET_HEIGHT, TARGET_WIDTH, 1))
         depth = np.exp(np.sum(np.multiply(mask, depth_bins), axis=2))
@@ -139,7 +143,7 @@ class DataSet:
             image_name = "%s/%05d_org.png" % (output_dir, i)
             pilimg.save(image_name)
             # depth = depth.transpose(2, 0, 1)
-            # depth = self.discretized_to_depth(depth)
+            # depth = self.bins_to_depth(depth)
             if np.max(depth) != 0:
                 ra_depth = (depth / np.max(depth)) * 255.0
             else:

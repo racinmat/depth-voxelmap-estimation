@@ -95,7 +95,7 @@ if __name__ == '__main__':
     res = records.dequeue()
     rgb_filename = res[0]
     depth_filename = res[1]
-    images, depths, _ = ds.filenames_to_batch(rgb_filename, depth_filename)
+    images, depths, _, _ = ds.filenames_to_batch(rgb_filename, depth_filename)
     config = tf.ConfigProto(
         device_count={'GPU': 0}
     )

@@ -26,7 +26,8 @@ CONV_WEIGHT_STDDEV = 0.1
 
 MAX_EPOCHS = int(1e6)
 LOG_DEVICE_PLACEMENT = False
-BATCH_SIZE = 8
+# BATCH_SIZE = 8
+BATCH_SIZE = 4  # batch size 8 does not fit to Nvidia GTX 1080 Ti. Hopefully batch size 4 will fit
 
 # TRAIN_FILE = "train.csv"
 # TEST_FILE = "test.csv"
@@ -44,7 +45,11 @@ COARSE_DIR = "coarse"
 PREDICT_DIR = os.path.join('predict', current_time)
 CHECKPOINT_DIR = os.path.join('checkpoint', current_time)  # Directory name to save the checkpoints
 LOGS_DIR = 'logs'
-GPU_IDX = [3]
+
+# GPU_IDX can be either integer, array or None. If None, only GPU is used
+# GPU_IDX = [3]
+GPU_IDX = None
+
 # WEIGHTS_REGULARIZER = slim.l2_regularizer(CONV_WEIGHT_DECAY)
 WEIGHTS_REGULARIZER = None
 
@@ -54,28 +59,39 @@ class Network(object):
     def __init__(self):
         self.sess = None
         self.saver = None
-        self.x = None
-        self.y = None
-        self.images = None
+        self.x = None   # input images
+        self.y = None   # desired output depth bins
+        # todo: zkontrolovat, že mi fakt nesedí dimenze u vstupů do metrik a opravit to.
+        self.y_image = None  # desired output depth images (synthetized from depths)
+        self.images = None  # images
         self.images_test = None
-        self.depths = None
+        self.depths = None  # depth images
         self.depths_test = None
-        self.depth_bins = None
+        self.depth_bins = None   # depth bins
         self.depth_bins_test = None
+        self.depth_reconst = None   # depth images, reconstructed from bins (correct depth range...)
+        self.depth_reconst_test = None
 
         # GPU settings
-        self.config = tf.ConfigProto(log_device_placement=LOG_DEVICE_PLACEMENT)
-        self.config.gpu_options.allow_growth = False
-        self.config.gpu_options.allocator_type = 'BFC'
-        devices_environ_var = 'CUDA_VISIBLE_DEVICES'
-        if devices_environ_var in os.environ:
-            available_devices = os.environ[devices_environ_var].split(',')
-            if len(available_devices):
-                if isinstance(GPU_IDX, list):
-                    os.environ[devices_environ_var] = ', '.join([available_devices[gpu] for gpu in GPU_IDX])
-                else:
-                    gpu = GPU_IDX
-                    os.environ[devices_environ_var] = available_devices[gpu]
+        if type(GPU_IDX) not in [None, list, int]:
+            raise Exception('Wrong GPU_IDX type, must be None, list or int')
+
+        if GPU_IDX is None:
+            self.config = tf.ConfigProto(device_count={'GPU': 0})
+        else:
+            self.config = tf.ConfigProto(log_device_placement=LOG_DEVICE_PLACEMENT)
+            self.config.gpu_options.allow_growth = False
+            self.config.gpu_options.allocator_type = 'BFC'
+
+            devices_environ_var = 'CUDA_VISIBLE_DEVICES'
+            if devices_environ_var in os.environ:
+                available_devices = os.environ[devices_environ_var].split(',')
+                if len(available_devices):
+                    if isinstance(GPU_IDX, list):
+                        os.environ[devices_environ_var] = ', '.join([available_devices[gpu] for gpu in GPU_IDX])
+                    else:
+                        gpu = GPU_IDX
+                        os.environ[devices_environ_var] = available_devices[gpu]
 
     def resize_layer(self, scope_name, inputs, small_size, big_size, stride=1, rate=1):
         with arg_scope([layers.conv2d], rate=rate):
@@ -229,6 +245,8 @@ class Network(object):
         return cost
 
     def metrics(self, estimated_depths_images):
+        print('self.y shape:', self.y.shape)
+        print('estimated_depths_images shape:', estimated_depths_images.shape)
         treshold = metrics_tf.accuracy_under_treshold(self.y, estimated_depths_images, 1.25)
         mre = metrics_tf.mean_relative_error(self.y, estimated_depths_images)
         rms = metrics_tf.root_mean_squared_error(self.y, estimated_depths_images)
@@ -271,8 +289,8 @@ class Network(object):
     def prepare(self):
         data_set = DataSet(BATCH_SIZE)
         global_step = tf.Variable(0, trainable=False)
-        self.images, self.depths, self.depth_bins = data_set.csv_inputs(TRAIN_FILE)
-        self.images_test, self.depths_test, self.depth_bins_test, = data_set.csv_inputs(
+        self.images, self.depths, self.depth_bins, self.depth_reconst = data_set.csv_inputs(TRAIN_FILE)
+        self.images_test, self.depths_test, self.depth_bins_test, self.depth_reconst_test, = data_set.csv_inputs(
             TEST_FILE)
         estimated_depths, estimated_logits = self.inference()
         loss = self.loss(estimated_depths)
@@ -326,14 +344,14 @@ class Network(object):
                 for epoch in range(MAX_EPOCHS):
                     for i in range(num_batches_per_epoch):
                         # sending images to sess.run so new batch is loaded
-                        images, depths, gt_images = self.sess.run(
+                        images, depths_bins, gt_images = self.sess.run(
                             [self.images, self.depth_bins, self.depths])
                         # training itself
                         _, loss_value, predicted_depths, summary_str = self.sess.run(
                             [train_op, loss, estimated_depths_images, summary],
                             feed_dict={
                                 self.x: images,
-                                self.y: depths,
+                                self.y: depths_bins,
                             }
                         )
                         # updating summary
@@ -342,14 +360,14 @@ class Network(object):
                                 summary,
                                 feed_dict={
                                     self.x: images,
-                                    self.y: depths,
+                                    self.y: depths_bins,
                                 }
                             )
                             writer.add_summary(summary_str, index)
 
                         if index % 20 == 0:
                             # loading new test batch
-                            images_test, depths_test = self.sess.run(
+                            images_test, depths_bins_test = self.sess.run(
                                 [self.images_test, self.depth_bins_test])
 
                             # testing itself
@@ -357,7 +375,7 @@ class Network(object):
                                 [loss, estimated_depths_images, test_summary],
                                 feed_dict={
                                     self.x: images_test,
-                                    self.y: depths_test,
+                                    self.y: depths_bins_test,
                                 }
                             )
 
