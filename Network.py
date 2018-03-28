@@ -63,6 +63,7 @@ class Network(object):
         self.y = None   # desired output depth bins
         # todo: zkontrolovat, že mi fakt nesedí dimenze u vstupů do metrik a opravit to.
         self.y_image = None  # desired output depth images (synthetized from depths)
+        self.y_image_rank4 = None  # desired output depth images in rank4
         self.images = None  # images
         self.images_test = None
         self.depths = None  # depth images
@@ -236,6 +237,7 @@ class Network(object):
         # size is depth dim + 1, because 1 layer is for too distant points, outside of desired area
         self.y = tf.placeholder(tf.float32, shape=[None, H, W, dataset.DEPTH_DIM + 1], name='y')
         self.y_image = tf.placeholder(tf.float32, shape=[None, H, W], name='y')
+        self.y_image_rank4 = tf.expand_dims(self.y_image, 3)
 
         print('labels shape:', self.y.shape)
         print('logits shape:', logits.shape)
@@ -246,12 +248,12 @@ class Network(object):
         return cost
 
     def metrics(self, estimated_depths_images):
-        print('self.y_image shape:', self.y_image.shape)
+        print('self.y_image_rank4 shape:', self.y_image_rank4.shape)
         print('estimated_depths_images shape:', estimated_depths_images.shape)
-        treshold = metrics_tf.accuracy_under_treshold(self.y_image, estimated_depths_images, 1.25)
-        mre = metrics_tf.mean_relative_error(self.y_image, estimated_depths_images)
-        rms = metrics_tf.root_mean_squared_error(self.y_image, estimated_depths_images)
-        rmls = metrics_tf.root_mean_squared_log_error(self.y_image, estimated_depths_images)
+        treshold = metrics_tf.accuracy_under_treshold(self.y_image_rank4, estimated_depths_images, 1.25)
+        mre = metrics_tf.mean_relative_error(self.y_image_rank4, estimated_depths_images)
+        rms = metrics_tf.root_mean_squared_error(self.y_image_rank4, estimated_depths_images)
+        rmls = metrics_tf.root_mean_squared_log_error(self.y_image_rank4, estimated_depths_images)
 
         tf.summary.scalar("under treshold 1.25", treshold)
         tf.summary.scalar("mean relative error", mre)
@@ -260,10 +262,10 @@ class Network(object):
 
     def test_metrics(self, cost, estimated_depths_images):
         # todo: rozřížit dimenzi z [batch size, height, width] na [batch size, heigh, width, 1]
-        treshold = metrics_tf.accuracy_under_treshold(self.y_image, estimated_depths_images, 1.25)
-        mre = metrics_tf.mean_relative_error(self.y_image, estimated_depths_images)
-        rms = metrics_tf.root_mean_squared_error(self.y_image, estimated_depths_images)
-        rmls = metrics_tf.root_mean_squared_log_error(self.y_image, estimated_depths_images)
+        treshold = metrics_tf.accuracy_under_treshold(self.y_image_rank4, estimated_depths_images, 1.25)
+        mre = metrics_tf.mean_relative_error(self.y_image_rank4, estimated_depths_images)
+        rms = metrics_tf.root_mean_squared_error(self.y_image_rank4, estimated_depths_images)
+        rmls = metrics_tf.root_mean_squared_log_error(self.y_image_rank4, estimated_depths_images)
 
         sum1 = tf.summary.scalar("test-cost", cost)
         sum2 = tf.summary.scalar("test-under treshold 1.25", treshold)
