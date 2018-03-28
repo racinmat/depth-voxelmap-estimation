@@ -16,8 +16,9 @@ Runs:
  - 2018-03-13--03-52-42 whole nyu dataset with the above mentioned dataset
  - 2018-03-19--04-14-04 whole GTA dataset, but with incorrect depth loaded
  - 2018-03-26--19-25-51 whole GTA dataset, with fixed depth loading and preprocessing
- - 2018-03-27--20-48-35 trying to overfit on 40 GTA images, died after 18 minutes
- 
+ - 2018-03-28--13-55-48 trying to overfit on 40 GTA images
+ - 2018-03-28--22-24-23 again, overfitting, with correct metrics and ground truth depth dumping
+
  In train-nyu and test-nyu, data from train are split in ratio 80:20
  
  

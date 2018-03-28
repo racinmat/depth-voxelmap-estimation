@@ -148,15 +148,24 @@ class DataSet:
         return depth
 
     @staticmethod
-    def output_predict(depths, images, gt_depth, output_dir):
+    def output_predict(depths, images, gt_depths, output_dir):
         print("output predict into %s" % output_dir)
         if not gfile.Exists(output_dir):
             gfile.MakeDirs(output_dir)
-        for i, (image, depth) in enumerate(zip(images, depths)):
+
+        assert len(depths) == len(images) and len(depths) == len(gt_depths)
+        for i, in range(len(images)):
+            image = images[i]
+            depth = depths[i]
+            gt_depth = gt_depths[i]
+
             # print('depth shape:', depth.shape)
             if len(depth.shape) == 3 and depth.shape[2] > 1:
                 raise Exception('oh, boi, shape is going wild', depth.shape)
+            if len(depth.shape) == 3 and depth.shape[2] > 1:
+                raise Exception('oh, boi, shape is going wild', depth.shape)
             depth = depth[:, :, 0]
+            gt_depth = gt_depth[:, :, 0]
 
             # input image
             pilimg = Image.fromarray(np.uint8(image))
