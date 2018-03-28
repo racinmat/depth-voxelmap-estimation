@@ -73,8 +73,8 @@ class Network(object):
         self.depth_reconst_test = None
 
         # GPU settings
-        if type(GPU_IDX) not in [None, list, int]:
-            raise Exception('Wrong GPU_IDX type, must be None, list or int')
+        if type(GPU_IDX) not in [type(None), list, int]:
+            raise Exception('Wrong GPU_IDX type, must be None, list or int, but is {}'.format(type(GPU_IDX)))
 
         if GPU_IDX is None:
             self.config = tf.ConfigProto(device_count={'GPU': 0})
@@ -235,6 +235,7 @@ class Network(object):
         W = dataset.TARGET_WIDTH
         # size is depth dim + 1, because 1 layer is for too distant points, outside of desired area
         self.y = tf.placeholder(tf.float32, shape=[None, H, W, dataset.DEPTH_DIM + 1], name='y')
+        self.y_image = tf.placeholder(tf.float32, shape=[None, H, W], name='y')
 
         print('labels shape:', self.y.shape)
         print('logits shape:', logits.shape)
@@ -245,12 +246,12 @@ class Network(object):
         return cost
 
     def metrics(self, estimated_depths_images):
-        print('self.y shape:', self.y.shape)
+        print('self.y_image shape:', self.y_image.shape)
         print('estimated_depths_images shape:', estimated_depths_images.shape)
-        treshold = metrics_tf.accuracy_under_treshold(self.y, estimated_depths_images, 1.25)
-        mre = metrics_tf.mean_relative_error(self.y, estimated_depths_images)
-        rms = metrics_tf.root_mean_squared_error(self.y, estimated_depths_images)
-        rmls = metrics_tf.root_mean_squared_log_error(self.y, estimated_depths_images)
+        treshold = metrics_tf.accuracy_under_treshold(self.y_image, estimated_depths_images, 1.25)
+        mre = metrics_tf.mean_relative_error(self.y_image, estimated_depths_images)
+        rms = metrics_tf.root_mean_squared_error(self.y_image, estimated_depths_images)
+        rmls = metrics_tf.root_mean_squared_log_error(self.y_image, estimated_depths_images)
 
         tf.summary.scalar("under treshold 1.25", treshold)
         tf.summary.scalar("mean relative error", mre)
@@ -258,10 +259,11 @@ class Network(object):
         tf.summary.scalar("root mean log square error", rmls)
 
     def test_metrics(self, cost, estimated_depths_images):
-        treshold = metrics_tf.accuracy_under_treshold(self.y, estimated_depths_images, 1.25)
-        mre = metrics_tf.mean_relative_error(self.y, estimated_depths_images)
-        rms = metrics_tf.root_mean_squared_error(self.y, estimated_depths_images)
-        rmls = metrics_tf.root_mean_squared_log_error(self.y, estimated_depths_images)
+        # todo: rozřížit dimenzi z [batch size, height, width] na [batch size, heigh, width, 1]
+        treshold = metrics_tf.accuracy_under_treshold(self.y_image, estimated_depths_images, 1.25)
+        mre = metrics_tf.mean_relative_error(self.y_image, estimated_depths_images)
+        rms = metrics_tf.root_mean_squared_error(self.y_image, estimated_depths_images)
+        rmls = metrics_tf.root_mean_squared_log_error(self.y_image, estimated_depths_images)
 
         sum1 = tf.summary.scalar("test-cost", cost)
         sum2 = tf.summary.scalar("test-under treshold 1.25", treshold)
@@ -344,14 +346,15 @@ class Network(object):
                 for epoch in range(MAX_EPOCHS):
                     for i in range(num_batches_per_epoch):
                         # sending images to sess.run so new batch is loaded
-                        images, depths_bins, gt_images = self.sess.run(
-                            [self.images, self.depth_bins, self.depths])
+                        images, depths_bins, gt_images, gt_depth_reconst = self.sess.run(
+                            [self.images, self.depth_bins, self.depths, self.depth_reconst])
                         # training itself
                         _, loss_value, predicted_depths, summary_str = self.sess.run(
                             [train_op, loss, estimated_depths_images, summary],
                             feed_dict={
                                 self.x: images,
                                 self.y: depths_bins,
+                                self.y_image: gt_depth_reconst,
                             }
                         )
                         # updating summary
@@ -361,14 +364,15 @@ class Network(object):
                                 feed_dict={
                                     self.x: images,
                                     self.y: depths_bins,
+                                    self.y_image: gt_depth_reconst,
                                 }
                             )
                             writer.add_summary(summary_str, index)
 
                         if index % 20 == 0:
                             # loading new test batch
-                            images_test, depths_bins_test = self.sess.run(
-                                [self.images_test, self.depth_bins_test])
+                            images_test, depths_bins_test, gt_depth_reconst_test = self.sess.run(
+                                [self.images_test, self.depth_bins_test, self.depth_reconst_test])
 
                             # testing itself
                             test_loss_value, test_predicted_depths, test_summary_str = self.sess.run(
@@ -376,6 +380,7 @@ class Network(object):
                                 feed_dict={
                                     self.x: images_test,
                                     self.y: depths_bins_test,
+                                    self.y_image: gt_depth_reconst_test,
                                 }
                             )
 

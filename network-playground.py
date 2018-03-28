@@ -57,7 +57,8 @@ if __name__ == '__main__':
     # dataset.IS_GTA_DATA = False
     # out_name = 'output-nyu'
 
-    checkpoint_model = 'checkpoint/2018-03-19--04-14-04'
+    # checkpoint_model = 'checkpoint/2018-03-19--04-14-04'
+    checkpoint_model = 'checkpoint/2018-03-28--13-55-48'
     out_dir = 'inspections'
 
     with tf.Graph().as_default() as graph:
@@ -65,6 +66,7 @@ if __name__ == '__main__':
             image = DataSet.filename_to_input_image(filename)
             depth = DataSet.filename_to_target_image(depth_filename)
             depth_discretized = DataSet.discretize_depth(depth)
+            depths_discretized_ft = tf.cast(depth_discretized, dtype=tf.float32)
 
             depth_png = tf.read_file(depth_filename)
             depth_raw = tf.image.decode_png(depth_png, channels=1, dtype=tf.uint16)
@@ -104,6 +106,12 @@ if __name__ == '__main__':
             rms = metrics_tf.root_mean_squared_error(depth_reconstructed, estimated_depths_images)
             rmls = metrics_tf.root_mean_squared_log_error(depth_reconstructed, estimated_depths_images)
 
+            # metrics for training in wrong implementation to check the behaviour
+            treshold_wrong = metrics_tf.accuracy_under_treshold(depths_discretized_ft, estimated_depths_images, 1.25)
+            mre_wrong = metrics_tf.mean_relative_error(depths_discretized_ft, estimated_depths_images)
+            rms_wrong = metrics_tf.root_mean_squared_error(depths_discretized_ft, estimated_depths_images)
+            rmls_wrong = metrics_tf.root_mean_squared_log_error(depths_discretized_ft, estimated_depths_images)
+
             coord = tf.train.Coordinator()
             threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
@@ -123,22 +131,31 @@ if __name__ == '__main__':
                                                                 feed_dict={
                                                                     input: images_val,
                                                                 })
-
-            output_predictions({
-                '%s/%03d_input.png': images_val,
-                '%s/%03d_output_gt.png': depths_val * 255.0,
-                '%s/%03d_output.png': estimated_depths_images_val * 255.0,
-                '%s/%03d_reconstructed.png': depth_reconstructed_val * 255.0,
-            }, {
-                '%s/%03d_input_%03d_discr.png': depths_discretized_val,
-                '%s/%03d_output_%03d_discr.png': estimated_depths_val,
-            }, 'predict-test-nyu')
+            treshold_val, mre_val, rms_val, rmls_val = sess.run([treshold, mre, rms, rmls],
+                                                                feed_dict={
+                                                                    input: images_val,
+                                                                })
+            treshold_wrong_val, mre_wrong_val, rms_wrong_val, rmls_wrong_val = sess.run([treshold_wrong, mre_wrong, rms_wrong, rmls_wrong],
+                                                                feed_dict={
+                                                                    input: images_val,
+                                                                })
+            # output_predictions({
+            #     '%s/%03d_input.png': images_val,
+            #     '%s/%03d_output_gt.png': depths_val * 255.0,
+            #     '%s/%03d_output.png': estimated_depths_images_val * 255.0,
+            #     '%s/%03d_reconstructed.png': depth_reconstructed_val * 255.0,
+            # }, {
+            #     '%s/%03d_input_%03d_discr.png': depths_discretized_val,
+            #     '%s/%03d_output_%03d_discr.png': estimated_depths_val,
+            # }, 'predict-test-nyu')
 
             with open(join(out_dir, out_name + '.rick'), 'wb+') as f:
                 pickle.dump([images_val, depths_val, estimated_depths_images_val, depth_reconstructed_val,
                              depths_discretized_val, estimated_depths_val, depth_raw_val,
                              treshold_gt_val, mre_gt_val, rms_gt_val, rmls_gt_val,
-                             treshold_val, mre_val, rms_val, rmls_val], f)
+                             treshold_val, mre_val, rms_val, rmls_val,
+                             treshold_wrong_val, mre_wrong_val, rms_wrong_val, rmls_wrong_val,
+                             ], f)
 
             # copy original files to show any problems with loading and preprocessing images
             copyfile(filename, join(out_dir, out_name + '-in-image.jpg'))

@@ -5,8 +5,6 @@ from tensorflow.python.platform import gfile
 import numpy as np
 from PIL import Image
 
-from Network import Network
-
 IMAGE_HEIGHT = 240
 IMAGE_WIDTH = 320
 TARGET_HEIGHT = 120
@@ -74,7 +72,7 @@ class DataSet:
         # target
         depth = self.filename_to_target_image(depth_filename)
         depth_bins = self.discretize_depth(depth)
-        depth_reconstructed = self.bins_to_depth(depth_bins)
+        depth_reconstructed = self.tf_bins_to_depth(depth_bins)
 
         # size = min(MIN_DEQUE_EXAMPLES, TOTAL_DATASET_SIZE)
         # capacity cannot be higher than dataset size, because then it throws exceptions
@@ -121,11 +119,32 @@ class DataSet:
         return depth_discretized
 
     @staticmethod
-    def bins_to_depth(depth_bins):
+    def np_bins_to_depth(depth_bins):
         # same as Network.bins_to_depth, but only for one image
         weights = np.array(range(DEPTH_DIM)) * Q + np.log(D_MIN)
         mask = np.tile(weights, (TARGET_HEIGHT, TARGET_WIDTH, 1))
         depth = np.exp(np.sum(np.multiply(mask, depth_bins), axis=2))
+        return depth
+
+    @staticmethod
+    def tf_bins_to_depth(depth_bins):
+        # same as Network.bins_to_depth, but only for one image
+        weights = np.array(range(DEPTH_DIM)) * Q + np.log(D_MIN)
+        print('weight shape', weights.shape)
+        sth = tf.expand_dims(tf.constant(weights, dtype=tf.float32), 0)
+        print('sth shape', sth.shape)
+        sth = tf.expand_dims(sth, 0)
+        print('sth shape', sth.shape)
+        mask = tf.tile(sth, [TARGET_HEIGHT, TARGET_WIDTH, 1])
+        print('mask shape', mask.shape)
+        # depth = np.exp(np.sum(np.multiply(mask, depth_bins), axis=2))
+        mask_multiplied = tf.multiply(mask, tf.cast(depth_bins[:, :, 0:DEPTH_DIM], dtype=tf.float32))
+        print('mask_multiplied shape', mask_multiplied.shape)
+        mask_multiplied_sum = tf.reduce_sum(mask_multiplied, axis=2)
+        print('mask_multiplied_sum shape', mask_multiplied_sum.shape)
+        depth = tf.exp(mask_multiplied_sum)
+        print('depth shape', depth.shape)
+
         return depth
 
     @staticmethod
