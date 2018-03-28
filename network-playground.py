@@ -6,6 +6,7 @@ from tensorflow.python.saved_model import tag_constants
 import os
 import Network
 import dataset
+import metrics_tf
 from dataset import DataSet
 import pickle
 from shutil import copyfile
@@ -44,8 +45,10 @@ def output_predictions(images_dict, multi_images_dict, output_dir):
 
 
 if __name__ == '__main__':
-    filename = 'ml-datasets/2018-03-07--15-18-12--849.jpg'
-    depth_filename = 'ml-datasets/2018-03-07--15-18-12--849.png'
+    # filename = 'ml-datasets/2018-03-07--15-18-12--849.jpg'
+    # depth_filename = 'ml-datasets/2018-03-07--15-18-12--849.png'
+    filename = 'ml-datasets/2018-03-07--15-27-34--483.jpg'
+    depth_filename = 'ml-datasets/2018-03-07--15-27-34--483.png'
     dataset.IS_GTA_DATA = True
     out_name = 'output-gta'
 
@@ -89,15 +92,37 @@ if __name__ == '__main__':
             estimated_depths = graph.get_tensor_by_name('network/inference:0')
             estimated_depths_images = Network.Network.bins_to_depth(estimated_depths)
 
+            # metrics for discretization itself
+            treshold_gt = metrics_tf.accuracy_under_treshold(depth, depth_reconstructed, 1.25)
+            mre_gt = metrics_tf.mean_relative_error(depth, depth_reconstructed)
+            rms_gt = metrics_tf.root_mean_squared_error(depth, depth_reconstructed)
+            rmls_gt = metrics_tf.root_mean_squared_log_error(depth, depth_reconstructed)
+
+            # metrics for training
+            treshold = metrics_tf.accuracy_under_treshold(depth_reconstructed, estimated_depths_images, 1.25)
+            mre = metrics_tf.mean_relative_error(depth_reconstructed, estimated_depths_images)
+            rms = metrics_tf.root_mean_squared_error(depth_reconstructed, estimated_depths_images)
+            rmls = metrics_tf.root_mean_squared_log_error(depth_reconstructed, estimated_depths_images)
+
             coord = tf.train.Coordinator()
             threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
+            # evaluating only inputs
             images_val, depths_val, depths_discretized_val, depth_reconstructed_val, depth_raw_val = sess.run(
                 [images, depths, depths_discretized, depth_reconstructed, depth_raw])
+            # evaluation input metrics
+            treshold_gt_val, mre_gt_val, rms_gt_val, rmls_gt_val = sess.run(
+                [treshold_gt, mre_gt, rms_gt, rmls_gt])
+            # evaluating depth estimations
             estimated_depths_val, estimated_depths_images_val = sess.run([estimated_depths, estimated_depths_images],
                                                                          feed_dict={
                                                                              input: images_val,
                                                                          })
+            # evaluation depth estimation metrics
+            treshold_val, mre_val, rms_val, rmls_val = sess.run([treshold, mre, rms, rmls],
+                                                                feed_dict={
+                                                                    input: images_val,
+                                                                })
 
             output_predictions({
                 '%s/%03d_input.png': images_val,
@@ -111,7 +136,9 @@ if __name__ == '__main__':
 
             with open(join(out_dir, out_name + '.rick'), 'wb+') as f:
                 pickle.dump([images_val, depths_val, estimated_depths_images_val, depth_reconstructed_val,
-                             depths_discretized_val, estimated_depths_val, depth_raw_val], f)
+                             depths_discretized_val, estimated_depths_val, depth_raw_val,
+                             treshold_gt_val, mre_gt_val, rms_gt_val, rmls_gt_val,
+                             treshold_val, mre_val, rms_val, rmls_val], f)
 
             # copy original files to show any problems with loading and preprocessing images
             copyfile(filename, join(out_dir, out_name + '-in-image.jpg'))
