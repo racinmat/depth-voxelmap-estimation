@@ -18,6 +18,7 @@ Runs:
  - 2018-03-26--19-25-51 whole GTA dataset, with fixed depth loading and preprocessing
  - 2018-03-28--13-55-48 trying to overfit on 40 GTA images
  - 2018-03-28--22-24-23 again, overfitting, with correct metrics and ground truth depth dumping
+ - 2018-03-29--00-14-08 again, overfitting, with correct metrics, ground truth depth dumping, and hopefully synced input and output images in tensorboard
 
  In train-nyu and test-nyu, data from train are split in ratio 80:20
  

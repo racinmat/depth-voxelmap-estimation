@@ -35,11 +35,11 @@ BATCH_SIZE = 4  # batch size 8 does not fit to Nvidia GTX 1080 Ti. Hopefully bat
 # TEST_FILE = "train-small.csv"
 # TRAIN_FILE = "train-nyu.csv"
 # TEST_FILE = "test-nyu.csv"
-# TRAIN_FILE = "train-gta.csv"
-# TEST_FILE = "test-gta.csv"
+TRAIN_FILE = "train-depth-gta.csv"
+TEST_FILE = "test-depth-gta.csv"
 # for trying to overfit
-TRAIN_FILE = "train-gta-small.csv"
-TEST_FILE = "train-gta-small.csv"
+# TRAIN_FILE = "train-gta-small.csv"
+# TEST_FILE = "train-gta-small.csv"
 
 COARSE_DIR = "coarse"
 PREDICT_DIR = os.path.join('predict', current_time)
@@ -47,7 +47,7 @@ CHECKPOINT_DIR = os.path.join('checkpoint', current_time)  # Directory name to s
 LOGS_DIR = 'logs'
 
 # GPU_IDX can be either integer, array or None. If None, only GPU is used
-GPU_IDX = [3]
+GPU_IDX = [1]
 # GPU_IDX = None
 
 # WEIGHTS_REGULARIZER = slim.l2_regularizer(CONV_WEIGHT_DECAY)
@@ -239,7 +239,7 @@ class Network(object):
         self.y = tf.placeholder(tf.float32, shape=[None, H, W, dataset.DEPTH_DIM + 1], name='y')
         self.y_image = tf.placeholder(tf.float32, shape=[None, H, W], name='y_image')
         self.y_image_rank4 = tf.expand_dims(self.y_image, 3)
-        self.y_image_orig = tf.placeholder(tf.float32, shape=[None, H, W], name='y_orig')
+        self.y_image_orig = tf.placeholder(tf.float32, shape=[None, H, W, 1], name='y_orig')
 
         print('labels shape:', self.y.shape)
         print('logits shape:', logits.shape)
@@ -354,8 +354,8 @@ class Network(object):
                         images, depths_bins, gt_images, gt_depth_reconst = self.sess.run(
                             [self.images, self.depth_bins, self.depths, self.depth_reconst])
                         # training itself
-                        _, loss_value, predicted_depths, summary_str = self.sess.run(
-                            [train_op, loss, estimated_depths_images, summary],
+                        _, loss_value, predicted_depths = self.sess.run(
+                            [train_op, loss, estimated_depths_images],
                             feed_dict={
                                 self.x: images,
                                 self.y: depths_bins,
