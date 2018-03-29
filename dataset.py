@@ -154,7 +154,7 @@ class DataSet:
             gfile.MakeDirs(output_dir)
 
         assert len(depths) == len(images) and len(depths) == len(gt_depths)
-        for i, in range(len(images)):
+        for i in range(len(images)):
             image = images[i]
             depth = depths[i]
             gt_depth = gt_depths[i]

@@ -62,6 +62,7 @@ class Network(object):
         self.x = None   # input images
         self.y = None   # desired output depth bins
         # todo: zkontrolovat, že mi fakt nesedí dimenze u vstupů do metrik a opravit to.
+        self.y_image_orig = None  # desired output depth images original
         self.y_image = None  # desired output depth images (synthetized from depths)
         self.y_image_rank4 = None  # desired output depth images in rank4
         self.images = None  # images
@@ -236,8 +237,9 @@ class Network(object):
         W = dataset.TARGET_WIDTH
         # size is depth dim + 1, because 1 layer is for too distant points, outside of desired area
         self.y = tf.placeholder(tf.float32, shape=[None, H, W, dataset.DEPTH_DIM + 1], name='y')
-        self.y_image = tf.placeholder(tf.float32, shape=[None, H, W], name='y')
+        self.y_image = tf.placeholder(tf.float32, shape=[None, H, W], name='y_image')
         self.y_image_rank4 = tf.expand_dims(self.y_image, 3)
+        self.y_image_orig = tf.placeholder(tf.float32, shape=[None, H, W], name='y_orig')
 
         print('labels shape:', self.y.shape)
         print('logits shape:', logits.shape)
@@ -309,8 +311,8 @@ class Network(object):
         estimated_depths_images = self.bins_to_depth(estimated_depths)
         self.metrics(estimated_depths_images)
 
-        tf.summary.image('input_images', self.images)
-        tf.summary.image('ground_truth_depths', self.depths)
+        tf.summary.image('input_images', self.x)
+        tf.summary.image('ground_truth_depths', self.y_image_orig)
         tf.summary.image('predicted_depths', estimated_depths_images)
         # this is last layer, need to expand dim, so the tensor is in shape [batch size, height, width, 1]
         for i in range(0, dataset.DEPTH_DIM, 20):
@@ -368,6 +370,7 @@ class Network(object):
                                     self.x: images,
                                     self.y: depths_bins,
                                     self.y_image: gt_depth_reconst,
+                                    self.y_image_orig: gt_images,
                                 }
                             )
                             writer.add_summary(summary_str, index)
@@ -384,6 +387,7 @@ class Network(object):
                                     self.x: images_test,
                                     self.y: depths_bins_test,
                                     self.y_image: gt_depth_reconst_test,
+                                    self.y_image_orig: gt_images_test,
                                 }
                             )
 
