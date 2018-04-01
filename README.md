@@ -16,10 +16,14 @@ Runs:
  - 2018-03-13--03-52-42 whole nyu dataset with the above mentioned dataset
  - 2018-03-19--04-14-04 whole GTA dataset, but with incorrect depth loaded
  - 2018-03-26--19-25-51 whole GTA dataset, with fixed depth loading and preprocessing
- - 2018-03-28--13-55-48 trying to overfit on 40 GTA images
+ - 2018-03-28--13-55-48 trying to overfit on 40 GTA images, batch size = 4
  - 2018-03-28--22-24-23 again, overfitting, with correct metrics and ground truth depth dumping
  - 2018-03-29--00-14-08 again, overfitting, with correct metrics, ground truth depth dumping, and hopefully synced input and output images in tensorboard
  - 2018-03-29--12-41-37 whole GTA dataset, now with correct metrics and tensorboard visualization, and correctly split training and testing set
+ - 2018-04-01--00-25-06 learning rate decay after 30k iterations, Adam optimizer (as in all previous cases), on 1080 Ti
+ - 2018-04-01--00-26-49 learning rate decay after 30k iterations, Nadam optimizer, on Titan X
+ - 2018-04-01--00-32-39 Adam optimizer, epsilon=1e-5, on titan Xp
+
 
 dgs s momentem a nesteroff momentem je lepší než adam
  In train-nyu and test-nyu, data from train are split in ratio 80:20
@@ -41,3 +45,6 @@ tensorboard --inspect --logdir=logs/2018-03-28--10-46-41
 
 inspecting single value in run:
 tensorboard --inspect --logdir=logs/2018-03-28--10-46-41 --tag=cost
+
+
+some insights: titan X is slower than 1080 ti, Titan Xp is only slightly faster than 1080 Ti.

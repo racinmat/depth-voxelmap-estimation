@@ -47,7 +47,7 @@ CHECKPOINT_DIR = os.path.join('checkpoint', current_time)  # Directory name to s
 LOGS_DIR = 'logs'
 
 # GPU_IDX can be either integer, array or None. If None, only GPU is used
-GPU_IDX = [1]
+GPU_IDX = [0]
 # GPU_IDX = None
 
 # WEIGHTS_REGULARIZER = slim.l2_regularizer(CONV_WEIGHT_DECAY)
@@ -322,11 +322,11 @@ class Network(object):
         tf.summary.image('predicted_invalid', tf.expand_dims(estimated_depths[:, :, :, dataset.DEPTH_DIM], 3))
 
         print('model prepared, going to train')
-        return data_set, loss, estimated_depths, train_op, estimated_depths_images
+        return data_set, loss, estimated_depths, train_op, estimated_depths_images, train_dataset_size
 
     def train(self):
         with tf.Graph().as_default() as g:
-            data_set, loss, estimated_depths, train_op, estimated_depths_images = self.prepare()
+            data_set, loss, estimated_depths, train_op, estimated_depths_images, train_dataset_size = self.prepare()
 
             # Session
             with tf.Session(config=self.config) as self.sess:
