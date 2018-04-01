@@ -296,6 +296,7 @@ class Network(object):
         data_set = DataSet(BATCH_SIZE)
         global_step = tf.Variable(0, trainable=False)
         self.images, self.depths, self.depth_bins, self.depth_reconst = data_set.csv_inputs(TRAIN_FILE)
+        train_dataset_size = DataSet.get_dataset_size(TRAIN_FILE)
         self.images_test, self.depths_test, self.depth_bins_test, self.depth_reconst_test, = data_set.csv_inputs(
             TEST_FILE)
         estimated_depths, estimated_logits = self.inference()
@@ -347,7 +348,7 @@ class Network(object):
                 gt_images_test = None
 
                 index = 0
-                num_batches_per_epoch = int(float(train_operation.NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN) / BATCH_SIZE)
+                num_batches_per_epoch = int(float(train_dataset_size) / BATCH_SIZE)
                 for epoch in range(MAX_EPOCHS):
                     for i in range(num_batches_per_epoch):
                         # sending images to sess.run so new batch is loaded

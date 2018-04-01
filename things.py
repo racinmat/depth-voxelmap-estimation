@@ -191,8 +191,25 @@ def playing_with_losses():
     plt.show()
 
 
+def tf_dataset_experiments():
+    filename_queue = tf.train.string_input_producer(['train-gta.csv'], shuffle=True)
+    reader = tf.TextLineReader()
+    _, serialized_example = reader.read(filename_queue)
+    filename, depth_filename = tf.decode_csv(serialized_example, [["path"], ["annotation"]])
+    num_records = reader.num_records_produced()
+    print(reader.num_records_produced())
+    with tf.Graph().as_default():
+        with tf.Session() as sess:
+            coord = tf.train.Coordinator()
+            threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+            res = sess.run(num_records)
+            print(res)
+
+
 if __name__ == '__main__':
-    playing_with_losses()
+    # playing_with_losses()
+    tf_dataset_experiments()
+
 
     # arr = np.array([
     #     [1, 1, 1, 2],
