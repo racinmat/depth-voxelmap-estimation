@@ -23,6 +23,9 @@ Runs:
  - 2018-04-01--00-25-06 learning rate decay after 30k iterations, Adam optimizer (as in all previous cases), on 1080 Ti
  - 2018-04-01--00-26-49 learning rate decay after 30k iterations, Nadam optimizer, on Titan X
  - 2018-04-01--00-32-39 Adam optimizer, epsilon=1e-5, on titan Xp
+ - 2018-04-02--02-51-28 Nadam, epsilon=1e-5
+ - 2018-04-02--02-52-07 Nadam, epsilon=1e-2
+ - 2018-04-02--02-59-31 Nadam, epsilon=1e-8 (default), no decaying learning rate, still 1e-4
 
 
 dgs s momentem a nesteroff momentem je lepší než adam
