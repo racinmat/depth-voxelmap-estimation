@@ -41,7 +41,6 @@ TEST_FILE = "test-depth-gta.csv"
 # TRAIN_FILE = "train-gta-small.csv"
 # TEST_FILE = "train-gta-small.csv"
 
-COARSE_DIR = "coarse"
 PREDICT_DIR = os.path.join('predict', current_time)
 CHECKPOINT_DIR = os.path.join('checkpoint', current_time)  # Directory name to save the checkpoints
 LOGS_DIR = 'logs'
