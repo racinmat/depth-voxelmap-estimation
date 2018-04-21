@@ -298,13 +298,25 @@ class Network(object):
         depth = tf.expand_dims(depth, 3)
         return depth
 
+    @staticmethod
+    def voxelmap_to_depth(voxels):
+        # this visualizes voxelmap as depth image
+        print('voxels.shape', voxels.shape)
+        voxels = tf.reverse(voxels, axis=[3])
+        depth_size = voxels.shape[3]
+        depth = tf.argmax(voxels, axis=3)
+
+        depth *= int(255 / depth_size)  # normalizing to use all of classing png values
+
+        return depth
+
     def prepare(self):
         data_set = DataSet(BATCH_SIZE)
         global_step = tf.Variable(0, trainable=False)
         train_dataset_size = DataSet.get_dataset_size(TRAIN_FILE)
         if IS_VOXELMAP:
-            self.images, self.voxelmaps, self.depth_reconst = data_set.csv_inputs(TRAIN_FILE)
-            self.images_test, self.voxelmaps_test, self.depth_reconst_test = data_set.csv_inputs(TEST_FILE)
+            self.images, self.voxelmaps, self.depth_reconst = data_set.csv_inputs_voxels(TRAIN_FILE)
+            self.images_test, self.voxelmaps_test, self.depth_reconst_test = data_set.csv_inputs_voxels(TEST_FILE)
         else:
             self.images, self.depths, self.depth_bins, self.depth_reconst = data_set.csv_inputs(TRAIN_FILE)
             self.images_test, self.depths_test, self.depth_bins_test, self.depth_reconst_test, = data_set.csv_inputs(
@@ -320,17 +332,19 @@ class Network(object):
             # print(var.op.name)
             tf.summary.histogram(var.op.name, var)
 
-        estimated_depths_images = self.bins_to_depth(estimated_depths)
+        if IS_VOXELMAP:
+            estimated_depths_images = self.voxelmap_to_depth(estimated_depths)
+            tf.summary.image('input_images', self.x)
+            tf.summary.image('ground_truth_depths', self.y_image_orig)
+            tf.summary.image('predicted_voxelmap_depths', estimated_depths_images)
+        else:
+            estimated_depths_images = self.bins_to_depth(estimated_depths)
+            tf.summary.image('input_images', self.x)
+            tf.summary.image('ground_truth_depths', self.y_image_orig)
+            tf.summary.image('predicted_depths', estimated_depths_images)
+
         self.metrics(estimated_depths_images)
 
-        if IS_VOXELMAP:
-            tf.summary.image('input_images', self.x)
-            tf.summary.image('ground_truth_depths', self.y_image_orig)
-            tf.summary.image('predicted_depths', estimated_depths_images)
-        else:
-            tf.summary.image('input_images', self.x)
-            tf.summary.image('ground_truth_depths', self.y_image_orig)
-            tf.summary.image('predicted_depths', estimated_depths_images)
         # this is last layer, need to expand dim, so the tensor is in shape [batch size, height, width, 1]
         for i in range(0, dataset.DEPTH_DIM, 20):
             tf.summary.image('predicted_layer_' + str(i), tf.expand_dims(estimated_depths[:, :, :, i], 3))

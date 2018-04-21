@@ -131,10 +131,6 @@ if __name__ == '__main__':
                                                                 feed_dict={
                                                                     input: images_val,
                                                                 })
-            treshold_val, mre_val, rms_val, rmls_val = sess.run([treshold, mre, rms, rmls],
-                                                                feed_dict={
-                                                                    input: images_val,
-                                                                })
             treshold_wrong_val, mre_wrong_val, rms_wrong_val, rmls_wrong_val = sess.run([treshold_wrong, mre_wrong, rms_wrong, rmls_wrong],
                                                                 feed_dict={
                                                                     input: images_val,

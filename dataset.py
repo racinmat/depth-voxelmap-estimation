@@ -68,9 +68,15 @@ class DataSet:
 
     @staticmethod
     def filename_to_target_voxelmap(filename):
-        voxelmap_bin = tf.read_file(filename)
-        voxelmap = tf.decode_raw(voxelmap_bin, out_type=tf.uint16)
-        voxelmap = tf.cast(voxelmap, tf.float32)
+        tf.logging.warning(('voxelmap filename', filename))
+        voxelmap = np.load(filename)
+        # voxelmap = tf.decode_raw(voxelmap_bin, out_type=tf.uint16)
+        # voxelmap = tf.cast(voxelmap, tf.float32)
+        #
+        # voxelmap = tf.reshape(
+        #     voxelmap,
+        #     [TARGET_WIDTH, TARGET_HEIGHT, DEPTH_DIM])
+
         return voxelmap
 
     def filenames_to_batch(self, filename, depth_filename, dataset_size=np.inf):
@@ -184,12 +190,28 @@ class DataSet:
 
     @staticmethod
     def tf_voxelmap_to_depth(voxels):
-        # this visualizes voxelmap as depth image
-        voxels = tf.reverse(voxels, axis=2)
-        depth_size = voxels.shape[2]
-        depth = np.argmax(voxels, axis=2)
+        # same as Network.voxelmap_to_depth, but only for one image
+        print('voxels', voxels)
+        print('voxels.shape', voxels.shape)
+        voxels = tf.reverse(voxels, axis=[2])
+        depth_size = voxels.shape[2].value
+        # depth = tf.argmax(voxels, axis=2)
+        print('voxels.shape', voxels.shape)
+        # by https://stackoverflow.com/questions/45115650/how-to-find-tensorflow-max-value-index-but-the-value-is-repeat
+        indices = tf.range(0, depth_size)
+        indices = tf.expand_dims(indices, 0)
+        indices = tf.expand_dims(indices, 0)
 
-        depth *= int(255 / depth_size)  # normalizing to use all of classing png values
+        depth = tf.argmin(tf.multiply(
+            tf.cast(tf.equal(voxels, True), dtype=tf.int32),
+            tf.tile(indices, [TARGET_WIDTH, TARGET_HEIGHT, 1])
+        ), output_type=tf.int32)
+        # depth_indices = tf.where(tf.equal(voxels, True))
+        # print('depth_indices.shape', depth_indices.shape)
+        # depth = tf.segment_min(depth_indices[:, 1], depth_indices[:, 0])
+        print('depth.shape', depth.shape)
+        print('depth.dtype', depth.dtype)
+        depth = tf.scalar_mul(tf.constant(255 / depth_size, dtype=tf.float32), tf.cast(depth, dtype=tf.float32))  # normalizing to use all of classing png values
 
         return depth
 

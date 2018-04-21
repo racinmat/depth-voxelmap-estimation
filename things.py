@@ -1,5 +1,7 @@
 import tensorflow as tf
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from PIL import Image
 
@@ -191,25 +193,100 @@ def playing_with_losses():
     plt.show()
 
 
-def tf_dataset_experiments():
-    filename_queue = tf.train.string_input_producer(['train-gta.csv'], shuffle=True)
-    reader = tf.TextLineReader()
-    _, serialized_example = reader.read(filename_queue)
-    filename, depth_filename = tf.decode_csv(serialized_example, [["path"], ["annotation"]])
-    num_records = reader.num_records_produced()
-    print(reader.num_records_produced())
-    with tf.Graph().as_default():
-        with tf.Session() as sess:
-            coord = tf.train.Coordinator()
-            threads = tf.train.start_queue_runners(sess=sess, coord=coord)
-            res = sess.run(num_records)
-            print(res)
+def input_parser(filename):
+    assert tf.get_default_session() is sess
+    tf.logging.warning(('filename', filename))
+    channel_data = tf.data.TextLineDataset(filename).map(lambda line: tf.decode_csv(line, [["path"], ["annotation"]]))
+    return channel_data
 
+
+def filenames_to_data(rgb_filename, voxelmap_filename):
+    tf.logging.warning(('rgb_filename', rgb_filename))
+    rgb_image = dataset.DataSet.filename_to_input_image(rgb_filename)
+    voxelmap = tf.py_func(dataset.DataSet.filename_to_target_voxelmap, [voxelmap_filename], tf.int32)
+    # voxelmap = dataset.DataSet.filename_to_target_voxelmap(voxelmap_filename)
+    depth_reconstructed = dataset.DataSet.tf_voxelmap_to_depth(voxelmap)
+    return rgb_image, voxelmap, depth_reconstructed
+
+
+def tf_new_data_api_experiments():
+    # global sess
+    batch_size = 4
+    with sess.as_default():
+        tf.logging.set_verbosity(tf.logging.INFO)
+        # dataset = tf.data.TFRecordDataset(['train-voxel-gta.csv', 'test-voxel-gta.csv'])
+        train_imgs = tf.constant(['train-voxel-gta.csv'])
+        filename_list = tf.data.Dataset.from_tensor_slices(train_imgs)
+        filename_pairs = filename_list.flat_map(input_parser)
+        data_pairs = filename_pairs.map(filenames_to_data)
+        data_pairs = data_pairs.batch(batch_size)
+        #
+        # # input
+        # image = dataset.DataSet.filename_to_input_image(filename)
+        # # target
+        # voxelmap = dataset.DataSet.filename_to_target_voxelmap(voxelmap_filename)
+        # depth_reconstructed = dataset.DataSet.tf_voxelmap_to_depth(voxelmap)
+
+        iterator = data_pairs.make_one_shot_iterator()
+        batch_images, batch_voxels, batch_depths = iterator.get_next()
+
+        for i in range(1):
+            images_values, voxels_values, depths_values = sess.run([batch_images, batch_voxels, batch_depths])
+
+            for j in range(batch_size):
+                plt.figure(figsize=(10, 6))
+                plt.axis('off')
+                plt.imshow(images_values[j, :, :, :].astype(dtype=np.uint8))
+                plt.savefig('inspections/out-{}-rgb.png'.format(j), bbox_inches='tight')
+
+                plt.figure(figsize=(10, 6))
+                plt.axis('off')
+                plt.imshow(depths_values[j, :, :], cmap='gray')
+                plt.savefig('inspections/out-{}-depth.png'.format(j), bbox_inches='tight')
+
+#                 pure numpy calculation of depth image from voxelmap
+                occupied_ndc_grid = voxels_values[j, :, :, :]
+                occupied_ndc_grid = np.flip(occupied_ndc_grid, axis=2)
+                depth_size = occupied_ndc_grid.shape[2]
+                new_depth = np.argmax(occupied_ndc_grid, axis=2)
+                new_depth = new_depth.T
+                new_depth *= int(255/depth_size)
+                plt.figure(figsize=(10, 7))
+                plt.axis('off')
+                plt.imshow(new_depth, cmap='gray')
+                plt.savefig('inspections/out-{}-depth-np.png'.format(j), bbox_inches='tight')
+
+
+def load_numpy_bin():
+    # name = 'inspections/2018-03-07--17-57-32--527.bin'
+    name = 'inspections/2018-03-07--17-57-32--527.npy'
+    # numpy_voxelmap = np.fromfile(name, sep=';')
+    numpy_voxelmap = np.load(name)
+    print(numpy_voxelmap.shape)
+    # numpy_voxelmap = numpy_voxelmap.reshape([240, 160, 100])
+    numpy_voxelmap = np.flip(numpy_voxelmap, axis=2)
+
+    # now I have just boolean for each value
+    # so I create mask to assign higher value to booleans in higher index
+    depth_size = numpy_voxelmap.shape[2]
+
+    new_depth = np.argmax(numpy_voxelmap, axis=2)
+    new_depth = new_depth.T
+    new_depth *= int(255 / depth_size)
+
+    plt.figure(figsize=(10, 6))
+    plt.axis('off')
+    plt.imshow(new_depth, cmap='gray')
+    plt.savefig('inspections/2018-03-07--17-57-32--527.png', bbox_inches='tight')
+
+
+sess = tf.Session(config=tf.ConfigProto(device_count={'GPU': 0}))
 
 if __name__ == '__main__':
     # playing_with_losses()
-    tf_dataset_experiments()
-
+    # tf_dataset_experiments()
+    # load_numpy_bin()
+    tf_new_data_api_experiments()
 
     # arr = np.array([
     #     [1, 1, 1, 2],
