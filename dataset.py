@@ -66,6 +66,13 @@ class DataSet:
         depth = tf.image.resize_images(depth, (TARGET_HEIGHT, TARGET_WIDTH))
         return depth
 
+    @staticmethod
+    def filename_to_target_voxelmap(filename):
+        voxelmap_bin = tf.read_file(filename)
+        voxelmap = tf.decode_raw(voxelmap_bin, out_type=tf.uint16)
+        voxelmap = tf.cast(voxelmap, tf.float32)
+        return voxelmap
+
     def filenames_to_batch(self, filename, depth_filename, dataset_size=np.inf):
         # input
         image = self.filename_to_input_image(filename)
@@ -88,12 +95,40 @@ class DataSet:
             min_after_dequeue=min_after_deque)
         return images, depths, depths_bins, depths_reconstructed
 
+    def filenames_to_batch_voxel(self, filename, voxelmap_filename, dataset_size=np.inf):
+        # input
+        image = self.filename_to_input_image(filename)
+        # target
+        voxelmap = self.filename_to_target_voxelmap(voxelmap_filename)
+        depth_reconstructed = self.tf_voxelmap_to_depth(voxelmap)
+
+        # size = min(MIN_DEQUE_EXAMPLES, TOTAL_DATASET_SIZE)
+        # capacity cannot be higher than dataset size, because then it throws exceptions
+        min_deque_size = min(MIN_DEQUE_EXAMPLES + 5 * self.batch_size, dataset_size)
+        min_after_deque = min(MIN_DEQUE_EXAMPLES, dataset_size - 1)
+
+        # generate batch
+        images, voxelmaps, depths_reconstructed = tf.train.shuffle_batch(
+            [image, voxelmap, depth_reconstructed],
+            batch_size=self.batch_size,
+            num_threads=4,
+            capacity=min_deque_size,
+            min_after_dequeue=min_after_deque)
+        return images, voxelmaps, depths_reconstructed
+
     def csv_inputs(self, csv_file_path):
         filename_queue = tf.train.string_input_producer([csv_file_path], shuffle=True)
         reader = tf.TextLineReader()
         _, serialized_example = reader.read(filename_queue)
         filename, depth_filename = tf.decode_csv(serialized_example, [["path"], ["annotation"]])
         return self.filenames_to_batch(filename, depth_filename, self.get_dataset_size(csv_file_path))
+
+    def csv_inputs_voxels(self, csv_file_path):
+        filename_queue = tf.train.string_input_producer([csv_file_path], shuffle=True)
+        reader = tf.TextLineReader()
+        _, serialized_example = reader.read(filename_queue)
+        filename, depth_filename = tf.decode_csv(serialized_example, [["path"], ["annotation"]])
+        return self.filenames_to_batch_voxel(filename, depth_filename, self.get_dataset_size(csv_file_path))
 
     @staticmethod
     def discretize_depth(depth):
@@ -144,6 +179,17 @@ class DataSet:
         print('mask_multiplied_sum shape', mask_multiplied_sum.shape)
         depth = tf.exp(mask_multiplied_sum)
         print('depth shape', depth.shape)
+
+        return depth
+
+    @staticmethod
+    def tf_voxelmap_to_depth(voxels):
+        # this visualizes voxelmap as depth image
+        voxels = tf.reverse(voxels, axis=2)
+        depth_size = voxels.shape[2]
+        depth = np.argmax(voxels, axis=2)
+
+        depth *= int(255 / depth_size)  # normalizing to use all of classing png values
 
         return depth
 

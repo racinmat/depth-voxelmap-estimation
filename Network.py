@@ -35,8 +35,11 @@ BATCH_SIZE = 4  # batch size 8 does not fit to Nvidia GTX 1080 Ti. Hopefully bat
 # TEST_FILE = "train-small.csv"
 # TRAIN_FILE = "train-nyu.csv"
 # TEST_FILE = "test-nyu.csv"
-TRAIN_FILE = "train-depth-gta.csv"
-TEST_FILE = "test-depth-gta.csv"
+# TRAIN_FILE = "train-depth-gta.csv"
+# TEST_FILE = "test-depth-gta.csv"
+# for voxelmap
+TRAIN_FILE = "train-voxel-gta.csv"
+TEST_FILE = "test-voxel-gta.csv"
 # for trying to overfit
 # TRAIN_FILE = "train-gta-small.csv"
 # TEST_FILE = "train-gta-small.csv"
@@ -52,6 +55,8 @@ GPU_IDX = [1]
 # WEIGHTS_REGULARIZER = slim.l2_regularizer(CONV_WEIGHT_DECAY)
 WEIGHTS_REGULARIZER = None
 
+IS_VOXELMAP = True
+
 
 class Network(object):
 
@@ -64,6 +69,8 @@ class Network(object):
         self.y_image_orig = None  # desired output depth images original
         self.y_image = None  # desired output depth images (synthetized from depths)
         self.y_image_rank4 = None  # desired output depth images in rank4
+        self.voxelmaps = None  # images
+        self.voxelmaps_test = None
         self.images = None  # images
         self.images_test = None
         self.depths = None  # depth images
@@ -294,10 +301,15 @@ class Network(object):
     def prepare(self):
         data_set = DataSet(BATCH_SIZE)
         global_step = tf.Variable(0, trainable=False)
-        self.images, self.depths, self.depth_bins, self.depth_reconst = data_set.csv_inputs(TRAIN_FILE)
         train_dataset_size = DataSet.get_dataset_size(TRAIN_FILE)
-        self.images_test, self.depths_test, self.depth_bins_test, self.depth_reconst_test, = data_set.csv_inputs(
-            TEST_FILE)
+        if IS_VOXELMAP:
+            self.images, self.voxelmaps, self.depth_reconst = data_set.csv_inputs(TRAIN_FILE)
+            self.images_test, self.voxelmaps_test, self.depth_reconst_test = data_set.csv_inputs(TEST_FILE)
+        else:
+            self.images, self.depths, self.depth_bins, self.depth_reconst = data_set.csv_inputs(TRAIN_FILE)
+            self.images_test, self.depths_test, self.depth_bins_test, self.depth_reconst_test, = data_set.csv_inputs(
+                TEST_FILE)
+
         estimated_depths, estimated_logits = self.inference()
         loss = self.loss(estimated_depths)
         train_op = op.train(loss, global_step, BATCH_SIZE)
@@ -311,9 +323,14 @@ class Network(object):
         estimated_depths_images = self.bins_to_depth(estimated_depths)
         self.metrics(estimated_depths_images)
 
-        tf.summary.image('input_images', self.x)
-        tf.summary.image('ground_truth_depths', self.y_image_orig)
-        tf.summary.image('predicted_depths', estimated_depths_images)
+        if IS_VOXELMAP:
+            tf.summary.image('input_images', self.x)
+            tf.summary.image('ground_truth_depths', self.y_image_orig)
+            tf.summary.image('predicted_depths', estimated_depths_images)
+        else:
+            tf.summary.image('input_images', self.x)
+            tf.summary.image('ground_truth_depths', self.y_image_orig)
+            tf.summary.image('predicted_depths', estimated_depths_images)
         # this is last layer, need to expand dim, so the tensor is in shape [batch size, height, width, 1]
         for i in range(0, dataset.DEPTH_DIM, 20):
             tf.summary.image('predicted_layer_' + str(i), tf.expand_dims(estimated_depths[:, :, :, i], 3))
@@ -322,6 +339,113 @@ class Network(object):
 
         print('model prepared, going to train')
         return data_set, loss, estimated_depths, train_op, estimated_depths_images, train_dataset_size
+
+    def get_samples(self):
+        if IS_VOXELMAP:
+            images, voxelmaps, gt_depth_reconst = self.sess.run(
+                [self.images,  self.voxelmaps, self.depth_reconst])
+            return images, voxelmaps, gt_depth_reconst
+        else:
+            images, depths_bins, gt_images, gt_depth_reconst = self.sess.run(
+                [self.images, self.depth_bins, self.depths, self.depth_reconst])
+            return images, depths_bins, gt_images, gt_depth_reconst
+
+    def get_samples_test(self):
+        if IS_VOXELMAP:
+            images_test, voxelmaps_test, gt_depth_reconst_test = self.sess.run(
+                [self.images_test, self.voxelmaps_test, self.depth_reconst_test])
+            return images_test, voxelmaps_test, gt_depth_reconst_test
+        else:
+            images_test, depths_bins_test, gt_images_test, gt_depth_reconst_test = self.sess.run(
+                [self.images_test, self.depth_bins_test, self.depths, self.depth_reconst_test])
+            return images_test, depths_bins_test, gt_images_test, gt_depth_reconst_test
+
+    def run_train_step(self, train_op, loss, estimated_depths_images, samples):
+        if IS_VOXELMAP:
+            images, voxelmaps, gt_depth_reconst = samples
+            _, loss_value, predicted_depths = self.sess.run(
+                [train_op, loss, estimated_depths_images],
+                feed_dict={
+                    self.x: images,
+                    self.y: voxelmaps,
+                    self.y_image: gt_depth_reconst,
+                }
+            )
+        else:
+            images, depths_bins, gt_images, gt_depth_reconst = samples
+            _, loss_value, predicted_depths = self.sess.run(
+                [train_op, loss, estimated_depths_images],
+                feed_dict={
+                    self.x: images,
+                    self.y: depths_bins,
+                    self.y_image: gt_depth_reconst,
+                }
+            )
+        return loss_value, predicted_depths
+
+    def run_summary_update(self, summary, samples):
+        if IS_VOXELMAP:
+            images, voxelmaps, gt_depth_reconst = samples
+            summary_str = self.sess.run(
+                summary,
+                feed_dict={
+                    self.x: images,
+                    self.y: voxelmaps,
+                    self.y_image: gt_depth_reconst,
+                }
+            )
+        else:
+            images, depths_bins, gt_images, gt_depth_reconst = samples
+            summary_str = self.sess.run(
+                summary,
+                feed_dict={
+                    self.x: images,
+                    self.y: depths_bins,
+                    self.y_image: gt_depth_reconst,
+                    self.y_image_orig: gt_images,
+                }
+            )
+        return summary_str
+
+    def run_test_step(self, loss, estimated_depths_images, test_summary, samples):
+        if IS_VOXELMAP:
+            images_test, voxelmaps_test, gt_depth_reconst_test = samples
+            test_loss_value, test_predicted_depths, test_summary_str = self.sess.run(
+                [loss, estimated_depths_images, test_summary],
+                feed_dict={
+                    self.x: images_test,
+                    self.y: voxelmaps_test,
+                    self.y_image: gt_depth_reconst_test,
+                }
+            )
+        else:
+            images_test, depths_bins_test, gt_images_test, gt_depth_reconst_test = samples
+            test_loss_value, test_predicted_depths, test_summary_str = self.sess.run(
+                [loss, estimated_depths_images, test_summary],
+                feed_dict={
+                    self.x: images_test,
+                    self.y: depths_bins_test,
+                    self.y_image: gt_depth_reconst_test,
+                    self.y_image_orig: gt_images_test,
+                }
+            )
+        return test_loss_value, test_predicted_depths, test_summary_str
+
+    def run_persist_step(self, samples, samples_test, data_set, predicted_depths, test_predicted_depths, epoch, i):
+        if IS_VOXELMAP:
+            images, voxelmaps, gt_depth_reconst = samples
+            images_test, voxelmaps_test, gt_depth_reconst_test = samples_test
+            data_set.output_predict(predicted_depths, images, gt_depth_reconst,
+                                    os.path.join(PREDICT_DIR, "iter_%05d_%05d" % (epoch, i)))
+            data_set.output_predict(test_predicted_depths, images_test, gt_depth_reconst_test,
+                                    os.path.join(PREDICT_DIR, "iter_%05d_%05d_test" % (epoch, i)))
+        else:
+            images, depths_bins, gt_depths, gt_depth_reconst = samples
+            images_test, depths_bins_test, gt_depths_test, gt_depth_reconst_test = samples_test
+            data_set.output_predict(predicted_depths, images, gt_depths,
+                                    os.path.join(PREDICT_DIR, "iter_%05d_%05d" % (epoch, i)))
+            data_set.output_predict(test_predicted_depths, images_test, gt_depths_test,
+                                    os.path.join(PREDICT_DIR, "iter_%05d_%05d_test" % (epoch, i)))
 
     def train(self):
         with tf.Graph().as_default() as g:
@@ -345,51 +469,26 @@ class Network(object):
                 test_predicted_depths = None
                 images_test = None
                 gt_images_test = None
+                samples_test = None
 
                 index = 0
                 num_batches_per_epoch = int(float(train_dataset_size) / BATCH_SIZE)
                 for epoch in range(MAX_EPOCHS):
                     for i in range(num_batches_per_epoch):
                         # sending images to sess.run so new batch is loaded
-                        images, depths_bins, gt_images, gt_depth_reconst = self.sess.run(
-                            [self.images, self.depth_bins, self.depths, self.depth_reconst])
+                        samples = self.get_samples()
                         # training itself
-                        _, loss_value, predicted_depths = self.sess.run(
-                            [train_op, loss, estimated_depths_images],
-                            feed_dict={
-                                self.x: images,
-                                self.y: depths_bins,
-                                self.y_image: gt_depth_reconst,
-                            }
-                        )
+                        loss_value, predicted_depths = self.run_train_step(train_op, loss, estimated_depths_images, samples)
                         # updating summary
                         if index % 10 == 0:
-                            summary_str = self.sess.run(
-                                summary,
-                                feed_dict={
-                                    self.x: images,
-                                    self.y: depths_bins,
-                                    self.y_image: gt_depth_reconst,
-                                    self.y_image_orig: gt_images,
-                                }
-                            )
+                            summary_str = self.run_summary_update(summary, samples)
                             writer.add_summary(summary_str, index)
 
                         if index % 20 == 0:
                             # loading new test batch
-                            images_test, depths_bins_test, gt_images_test, gt_depth_reconst_test = self.sess.run(
-                                [self.images_test, self.depth_bins_test, self.depths, self.depth_reconst_test])
-
+                            samples_test = self.get_samples_test()
                             # testing itself
-                            test_loss_value, test_predicted_depths, test_summary_str = self.sess.run(
-                                [loss, estimated_depths_images, test_summary],
-                                feed_dict={
-                                    self.x: images_test,
-                                    self.y: depths_bins_test,
-                                    self.y_image: gt_depth_reconst_test,
-                                    self.y_image_orig: gt_images_test,
-                                }
-                            )
+                            test_loss_value, test_predicted_depths, test_summary_str = self.run_test_step(loss, estimated_depths_images, test_summary, samples_test)
 
                             writer.add_summary(test_summary_str, index)
                             print(
@@ -399,10 +498,7 @@ class Network(object):
                                     datetime.now(), epoch, i, test_loss_value))
                             assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
                         if index % 500 == 0:
-                            data_set.output_predict(predicted_depths, images, gt_images,
-                                                    os.path.join(PREDICT_DIR, "iter_%05d_%05d" % (epoch, i)))
-                            data_set.output_predict(test_predicted_depths, images_test, gt_images_test,
-                                                    os.path.join(PREDICT_DIR, "iter_%05d_%05d_test" % (epoch, i)))
+                            self.run_persist_step(samples, samples_test, data_set, predicted_depths, test_predicted_depths, epoch, i)
                             self.save_model(self.sess, index)
 
                         index += 1
