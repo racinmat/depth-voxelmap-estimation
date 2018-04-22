@@ -66,7 +66,7 @@ class Network(object):
         self.x = None   # input images
         self.y = None   # desired output depth bins
         # todo: zkontrolovat, že mi fakt nesedí dimenze u vstupů do metrik a opravit to.
-        self.y_image_orig = None  # desired output depth images original
+        self.y_image_orig = None  # desired output depth images original, not used for voxelmap
         self.y_image = None  # desired output depth images (synthetized from depths)
         self.y_image_rank4 = None  # desired output depth images in rank4
         self.voxelmaps = None  # images
@@ -296,7 +296,7 @@ class Network(object):
         sum3 = tf.summary.scalar("test-mean relative error", mre)
         sum4 = tf.summary.scalar("test-root mean square error", rms)
         sum5 = tf.summary.scalar("test-root mean log square error", rmls)
-        sum6 = tf.summary.image("test-predicted_depths", estimated_depths_images)
+        sum6 = tf.summary.image("test-predicted_depths", tf.expand_dims(estimated_depths_images, 3))
         return tf.summary.merge([sum1, sum2, sum3, sum4, sum5, sum6])
 
     @staticmethod
@@ -356,8 +356,8 @@ class Network(object):
         if IS_VOXELMAP:
             estimated_depths_images = self.voxelmap_to_depth(estimated_depths)
             tf.summary.image('input_images', self.x)
-            tf.summary.image('ground_truth_depths', self.y_image_orig)
-            tf.summary.image('predicted_voxelmap_depths', estimated_depths_images)
+            tf.summary.image('ground_truth_depths', tf.expand_dims(self.y_image, 3))
+            tf.summary.image('predicted_voxelmap_depths', tf.expand_dims(estimated_depths_images, 3))
         else:
             estimated_depths_images = self.bins_to_depth(estimated_depths)
             tf.summary.image('input_images', self.x)

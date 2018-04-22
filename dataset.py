@@ -71,10 +71,10 @@ class DataSet:
 
     @staticmethod
     def filename_to_target_voxelmap(filename):
-        tf.logging.warning(('voxelmap filename', filename))
-        tf.logging.warning(('voxelmap filename', filename.decode("utf-8")))
+        # tf.logging.warning(('voxelmap filename', filename))
+        # tf.logging.warning(('voxelmap filename', filename.decode("utf-8")))
         voxelmap = np.load(filename.decode("utf-8"))  # for some shitty reason, I ger filename in bytes
-        tf.logging.warning(('voxelmap.shape', voxelmap.shape))
+        # tf.logging.warning(('voxelmap.shape', voxelmap.shape))
 
         return voxelmap.astype(np.int32)
 
@@ -102,8 +102,8 @@ class DataSet:
         rgb_image = DataSet.filename_to_input_image(rgb_filename)
         # target
         voxelmap = tf.py_func(DataSet.filename_to_target_voxelmap, [voxelmap_filename], tf.int32)
-        voxelmap = tf.transpose(voxelmap, [1, 0, 2])
         voxelmap.set_shape([TARGET_WIDTH, TARGET_HEIGHT, DEPTH_DIM])
+        voxelmap = tf.transpose(voxelmap, [1, 0, 2])
         depth_reconstructed = DataSet.tf_voxelmap_to_depth(voxelmap)
         return rgb_image, voxelmap, depth_reconstructed
 
@@ -184,12 +184,12 @@ class DataSet:
     @staticmethod
     def tf_voxelmap_to_depth(voxels):
         # same as Network.voxelmap_to_depth, but only for one image
-        print('voxels', voxels)
-        print('voxels.shape', voxels.shape)
+        # print('voxels', voxels)
+        # print('voxels.shape', voxels.shape)
         # voxels = tf.reverse(voxels, axis=[2]) # numpy takes first argmax, so it needs reversing, tensorflow uses multiplication of value and index, so it takes last max value
         depth_size = voxels.shape[2].value
         # depth = tf.argmax(voxels, axis=2)
-        print('voxels.shape', voxels.shape)
+        # print('voxels.shape', voxels.shape)
         # by https://stackoverflow.com/questions/45115650/how-to-find-tensorflow-max-value-index-but-the-value-is-repeat
         indices = tf.range(1, depth_size + 1)   # so there is no multiplication by 0 on this side, only 0 in voxelmap will force the 0
         indices = tf.expand_dims(indices, 0)
@@ -197,14 +197,14 @@ class DataSet:
 
         depth = tf.argmax(tf.multiply(
             tf.cast(tf.equal(voxels, True), dtype=tf.int32),
-            tf.tile(indices, [TARGET_WIDTH, TARGET_HEIGHT, 1])
+            tf.tile(indices, [TARGET_HEIGHT, TARGET_WIDTH, 1])
         ), axis=2, output_type=tf.int32)
         # depth_indices = tf.where(tf.equal(voxels, True))
         # print('depth_indices.shape', depth_indices.shape)
         # depth = tf.segment_min(depth_indices[:, 1], depth_indices[:, 0])
-        print('depth.shape', depth.shape)
-        print('depth.dtype', depth.dtype)
-        print('depth_size', depth_size)
+        # print('depth.shape', depth.shape)
+        # print('depth.dtype', depth.dtype)
+        # print('depth_size', depth_size)
         depth = tf.scalar_mul(tf.constant(255 / depth_size, dtype=tf.float32), tf.cast(depth, dtype=tf.float32))  # normalizing to use all of classing png values
 
         return depth
@@ -224,9 +224,12 @@ class DataSet:
             # print('depth shape:', depth.shape)
             if len(depth.shape) == 3 and depth.shape[2] > 1:
                 raise Exception('oh, boi, shape is going wild', depth.shape)
-            if len(depth.shape) == 3 and depth.shape[2] > 1:
-                raise Exception('oh, boi, shape is going wild', depth.shape)
-            depth = depth[:, :, 0]
+            if len(gt_depth.shape) == 3 and gt_depth.shape[2] > 1:
+                raise Exception('oh, boi, gt_depth.shape is going wild', gt_depth.shape)
+            if len(depth.shape) == 3:
+                depth = depth[:, :, 0]
+            if len(gt_depth.shape) == 3:
+                gt_depth = gt_depth[:, :, 0]
             gt_depth = gt_depth[:, :, 0]
 
             # input image
