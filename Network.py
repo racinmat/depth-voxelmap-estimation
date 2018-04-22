@@ -328,7 +328,7 @@ class Network(object):
         depth = tf.argmax(tf.multiply(
             tf.cast(tf.equal(voxels, True), dtype=tf.int32),
             tf.tile(indices, [BATCH_SIZE, dataset.TARGET_HEIGHT, dataset.TARGET_WIDTH, 1])
-        ), axis=2, output_type=tf.int32)
+        ), axis=3, output_type=tf.int32)
         depth = tf.scalar_mul(tf.constant(255 / depth_size, dtype=tf.float32), tf.cast(depth, dtype=tf.float32))  # normalizing to use all of classing png values
         return depth
 
