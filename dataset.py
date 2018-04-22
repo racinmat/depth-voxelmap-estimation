@@ -74,12 +74,6 @@ class DataSet:
         tf.logging.warning(('voxelmap filename', filename))
         tf.logging.warning(('voxelmap filename', filename.decode("utf-8")))
         voxelmap = np.load(filename.decode("utf-8"))  # for some shitty reason, I ger filename in bytes
-        # voxelmap = tf.decode_raw(voxelmap_bin, out_type=tf.uint16)
-        # voxelmap = tf.cast(voxelmap, tf.float32)
-        #
-        # voxelmap = tf.reshape(
-        #     voxelmap,
-        #     [TARGET_WIDTH, TARGET_HEIGHT, DEPTH_DIM])
         tf.logging.warning(('voxelmap.shape', voxelmap.shape))
 
         return voxelmap.astype(np.int32)
@@ -108,6 +102,7 @@ class DataSet:
         rgb_image = DataSet.filename_to_input_image(rgb_filename)
         # target
         voxelmap = tf.py_func(DataSet.filename_to_target_voxelmap, [voxelmap_filename], tf.int32)
+        voxelmap = tf.transpose(voxelmap, [1, 0, 2])
         voxelmap.set_shape([TARGET_WIDTH, TARGET_HEIGHT, DEPTH_DIM])
         depth_reconstructed = DataSet.tf_voxelmap_to_depth(voxelmap)
         return rgb_image, voxelmap, depth_reconstructed
