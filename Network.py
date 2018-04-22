@@ -265,8 +265,15 @@ class Network(object):
         return cost
 
     def metrics(self, estimated_depths_images):
+        treshold, mre, rms, rmls = self.create_metrics(estimated_depths_images)
+        tf.summary.scalar("under treshold 1.25", treshold)
+        tf.summary.scalar("mean relative error", mre)
+        tf.summary.scalar("root mean square error", rms)
+        tf.summary.scalar("root mean log square error", rmls)
+
+    def create_metrics(self, estimated_depths_images):
         if IS_VOXELMAP:
-            print('self.y_image_rank4 shape:', self.y_image.shape)
+            print('self.y_image shape:', self.y_image.shape)
             print('estimated_depths_images shape:', estimated_depths_images.shape)
             treshold = metrics_tf.accuracy_under_treshold(self.y_image, estimated_depths_images, 1.25)
             mre = metrics_tf.mean_relative_error(self.y_image, estimated_depths_images)
@@ -279,18 +286,10 @@ class Network(object):
             mre = metrics_tf.mean_relative_error(self.y_image_rank4, estimated_depths_images)
             rms = metrics_tf.root_mean_squared_error(self.y_image_rank4, estimated_depths_images)
             rmls = metrics_tf.root_mean_squared_log_error(self.y_image_rank4, estimated_depths_images)
-
-        tf.summary.scalar("under treshold 1.25", treshold)
-        tf.summary.scalar("mean relative error", mre)
-        tf.summary.scalar("root mean square error", rms)
-        tf.summary.scalar("root mean log square error", rmls)
+        return treshold, mre, rms, rmls
 
     def test_metrics(self, cost, estimated_depths_images):
-        # todo: rozřížit dimenzi z [batch size, height, width] na [batch size, heigh, width, 1]
-        treshold = metrics_tf.accuracy_under_treshold(self.y_image_rank4, estimated_depths_images, 1.25)
-        mre = metrics_tf.mean_relative_error(self.y_image_rank4, estimated_depths_images)
-        rms = metrics_tf.root_mean_squared_error(self.y_image_rank4, estimated_depths_images)
-        rmls = metrics_tf.root_mean_squared_log_error(self.y_image_rank4, estimated_depths_images)
+        treshold, mre, rms, rmls = self.create_metrics(estimated_depths_images)
 
         sum1 = tf.summary.scalar("test-cost", cost)
         sum2 = tf.summary.scalar("test-under treshold 1.25", treshold)
@@ -371,7 +370,8 @@ class Network(object):
         for i in range(0, dataset.DEPTH_DIM, 20):
             tf.summary.image('predicted_layer_' + str(i), tf.expand_dims(estimated_depths[:, :, :, i], 3))
 
-        tf.summary.image('predicted_invalid', tf.expand_dims(estimated_depths[:, :, :, dataset.DEPTH_DIM], 3))
+        if not IS_VOXELMAP:
+            tf.summary.image('predicted_invalid', tf.expand_dims(estimated_depths[:, :, :, dataset.DEPTH_DIM], 3))
 
         print('model prepared, going to train')
         return data_set, loss, estimated_depths, train_op, estimated_depths_images, train_dataset_size
