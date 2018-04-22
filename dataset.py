@@ -7,8 +7,11 @@ from PIL import Image
 
 IMAGE_HEIGHT = 240
 IMAGE_WIDTH = 320
-TARGET_HEIGHT = 120
-TARGET_WIDTH = 160
+# TARGET_HEIGHT = 120
+# TARGET_WIDTH = 160
+# this is for the voxelmap
+TARGET_HEIGHT = 160
+TARGET_WIDTH = 240
 
 # DEPTH_DIM = 200
 DEPTH_DIM = 100
@@ -69,15 +72,17 @@ class DataSet:
     @staticmethod
     def filename_to_target_voxelmap(filename):
         tf.logging.warning(('voxelmap filename', filename))
-        voxelmap = np.load(filename)
+        tf.logging.warning(('voxelmap filename', filename.decode("utf-8")))
+        voxelmap = np.load(filename.decode("utf-8"))  # for some shitty reason, I ger filename in bytes
         # voxelmap = tf.decode_raw(voxelmap_bin, out_type=tf.uint16)
         # voxelmap = tf.cast(voxelmap, tf.float32)
         #
         # voxelmap = tf.reshape(
         #     voxelmap,
         #     [TARGET_WIDTH, TARGET_HEIGHT, DEPTH_DIM])
+        tf.logging.warning(('voxelmap.shape', voxelmap.shape))
 
-        return voxelmap
+        return voxelmap.astype(np.int32)
 
     def filenames_to_batch(self, filename, depth_filename, dataset_size=np.inf):
         # input
@@ -193,24 +198,25 @@ class DataSet:
         # same as Network.voxelmap_to_depth, but only for one image
         print('voxels', voxels)
         print('voxels.shape', voxels.shape)
-        voxels = tf.reverse(voxels, axis=[2])
+        # voxels = tf.reverse(voxels, axis=[2]) # numpy takes first argmax, so it needs reversing, tensorflow uses multiplication of value and index, so it takes last max value
         depth_size = voxels.shape[2].value
         # depth = tf.argmax(voxels, axis=2)
         print('voxels.shape', voxels.shape)
         # by https://stackoverflow.com/questions/45115650/how-to-find-tensorflow-max-value-index-but-the-value-is-repeat
-        indices = tf.range(0, depth_size)
+        indices = tf.range(1, depth_size + 1)   # so there is no multiplication by 0 on this side, only 0 in voxelmap will force the 0
         indices = tf.expand_dims(indices, 0)
         indices = tf.expand_dims(indices, 0)
 
-        depth = tf.argmin(tf.multiply(
+        depth = tf.argmax(tf.multiply(
             tf.cast(tf.equal(voxels, True), dtype=tf.int32),
             tf.tile(indices, [TARGET_WIDTH, TARGET_HEIGHT, 1])
-        ), output_type=tf.int32)
+        ), axis=2, output_type=tf.int32)
         # depth_indices = tf.where(tf.equal(voxels, True))
         # print('depth_indices.shape', depth_indices.shape)
         # depth = tf.segment_min(depth_indices[:, 1], depth_indices[:, 0])
         print('depth.shape', depth.shape)
         print('depth.dtype', depth.dtype)
+        print('depth_size', depth_size)
         depth = tf.scalar_mul(tf.constant(255 / depth_size, dtype=tf.float32), tf.cast(depth, dtype=tf.float32))  # normalizing to use all of classing png values
 
         return depth

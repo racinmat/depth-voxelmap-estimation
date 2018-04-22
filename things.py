@@ -204,6 +204,7 @@ def filenames_to_data(rgb_filename, voxelmap_filename):
     tf.logging.warning(('rgb_filename', rgb_filename))
     rgb_image = dataset.DataSet.filename_to_input_image(rgb_filename)
     voxelmap = tf.py_func(dataset.DataSet.filename_to_target_voxelmap, [voxelmap_filename], tf.int32)
+    voxelmap.set_shape([dataset.TARGET_WIDTH, dataset.TARGET_HEIGHT, dataset.DEPTH_DIM])
     # voxelmap = dataset.DataSet.filename_to_target_voxelmap(voxelmap_filename)
     depth_reconstructed = dataset.DataSet.tf_voxelmap_to_depth(voxelmap)
     return rgb_image, voxelmap, depth_reconstructed
@@ -241,7 +242,7 @@ def tf_new_data_api_experiments():
 
                 plt.figure(figsize=(10, 6))
                 plt.axis('off')
-                plt.imshow(depths_values[j, :, :], cmap='gray')
+                plt.imshow(depths_values[j, :, :].T, cmap='gray')
                 plt.savefig('inspections/out-{}-depth.png'.format(j), bbox_inches='tight')
 
 #                 pure numpy calculation of depth image from voxelmap
