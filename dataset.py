@@ -84,62 +84,55 @@ class DataSet:
 
         return voxelmap.astype(np.int32)
 
-    def filenames_to_batch(self, filename, depth_filename, dataset_size=np.inf):
-        # input
-        image = self.filename_to_input_image(filename)
-        # target
-        depth = self.filename_to_target_image(depth_filename)
-        depth_bins = self.discretize_depth(depth)
-        depth_reconstructed = self.tf_bins_to_depth(depth_bins)
+    def filenames_to_batch(self, filename_pairs):
+        data_pairs = filename_pairs.map(self.filenames_to_data)
+        data_pairs = data_pairs.batch(self.batch_size)
 
-        # size = min(MIN_DEQUE_EXAMPLES, TOTAL_DATASET_SIZE)
-        # capacity cannot be higher than dataset size, because then it throws exceptions
-        min_deque_size = min(MIN_DEQUE_EXAMPLES + 5 * self.batch_size, dataset_size)
-        min_after_deque = min(MIN_DEQUE_EXAMPLES, dataset_size - 1)
-
-        # generate batch
-        images, depths, depths_bins, depths_reconstructed = tf.train.shuffle_batch(
-            [image, depth, depth_bins, depth_reconstructed],
-            batch_size=self.batch_size,
-            num_threads=4,
-            capacity=min_deque_size,
-            min_after_dequeue=min_after_deque)
+        iterator = data_pairs.make_one_shot_iterator()
+        images, depths, depths_bins, depths_reconstructed = iterator.get_next()
         return images, depths, depths_bins, depths_reconstructed
 
-    def filenames_to_batch_voxel(self, filename, voxelmap_filename, dataset_size=np.inf):
+    @staticmethod
+    def filenames_to_data(rgb_filename, depth_filename):
         # input
-        image = self.filename_to_input_image(filename)
+        rgb_image = DataSet.filename_to_input_image(rgb_filename)
         # target
-        voxelmap = self.filename_to_target_voxelmap(voxelmap_filename)
-        depth_reconstructed = self.tf_voxelmap_to_depth(voxelmap)
+        depth = DataSet.filename_to_target_image(depth_filename)
+        depth_bins = DataSet.discretize_depth(depth)
+        depth_reconstructed = DataSet.tf_bins_to_depth(depth_bins)
+        return rgb_image, depth, depth_bins, depth_reconstructed
 
-        # size = min(MIN_DEQUE_EXAMPLES, TOTAL_DATASET_SIZE)
-        # capacity cannot be higher than dataset size, because then it throws exceptions
-        min_deque_size = min(MIN_DEQUE_EXAMPLES + 5 * self.batch_size, dataset_size)
-        min_after_deque = min(MIN_DEQUE_EXAMPLES, dataset_size - 1)
+    @staticmethod
+    def filenames_to_data_voxel(rgb_filename, voxelmap_filename):
+        # input
+        rgb_image = DataSet.filename_to_input_image(rgb_filename)
+        # target
+        voxelmap = tf.py_func(DataSet.filename_to_target_voxelmap, [voxelmap_filename], tf.int32)
+        voxelmap.set_shape([TARGET_WIDTH, TARGET_HEIGHT, DEPTH_DIM])
+        depth_reconstructed = DataSet.tf_voxelmap_to_depth(voxelmap)
+        return rgb_image, voxelmap, depth_reconstructed
 
-        # generate batch
-        images, voxelmaps, depths_reconstructed = tf.train.shuffle_batch(
-            [image, voxelmap, depth_reconstructed],
-            batch_size=self.batch_size,
-            num_threads=4,
-            capacity=min_deque_size,
-            min_after_dequeue=min_after_deque)
-        return images, voxelmaps, depths_reconstructed
+    def filenames_to_batch_voxel(self, filename_pairs):
+        data_pairs = filename_pairs.map(self.filenames_to_data_voxel)
+        data_pairs = data_pairs.batch(self.batch_size)
+
+        iterator = data_pairs.make_one_shot_iterator()
+        batch_images, batch_voxels, batch_depths = iterator.get_next()
+        return batch_images, batch_voxels, batch_depths
 
     def csv_inputs(self, csv_file_path):
-        filename_queue = tf.train.string_input_producer([csv_file_path], shuffle=True)
-        reader = tf.TextLineReader()
-        _, serialized_example = reader.read(filename_queue)
-        filename, depth_filename = tf.decode_csv(serialized_example, [["path"], ["annotation"]])
-        return self.filenames_to_batch(filename, depth_filename, self.get_dataset_size(csv_file_path))
+        filename = tf.constant([csv_file_path])
+        filename_list = tf.data.Dataset.from_tensor_slices(filename)
+        filename_pairs = filename_list.flat_map(lambda x: tf.data.TextLineDataset(x).map(lambda line: tf.decode_csv(line, [["path"], ["annotation"]])))
+
+        return self.filenames_to_batch(filename_pairs)
 
     def csv_inputs_voxels(self, csv_file_path):
-        filename_queue = tf.train.string_input_producer([csv_file_path], shuffle=True)
-        reader = tf.TextLineReader()
-        _, serialized_example = reader.read(filename_queue)
-        filename, depth_filename = tf.decode_csv(serialized_example, [["path"], ["annotation"]])
-        return self.filenames_to_batch_voxel(filename, depth_filename, self.get_dataset_size(csv_file_path))
+        filename = tf.constant([csv_file_path])
+        filename_list = tf.data.Dataset.from_tensor_slices(filename)
+        filename_pairs = filename_list.flat_map(lambda x: tf.data.TextLineDataset(x).map(lambda line: tf.decode_csv(line, [["path"], ["annotation"]])))
+
+        return self.filenames_to_batch_voxel(filename_pairs)
 
     @staticmethod
     def discretize_depth(depth):

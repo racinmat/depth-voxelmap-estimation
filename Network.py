@@ -476,10 +476,6 @@ class Network(object):
 
                 writer = tf.summary.FileWriter(os.path.join(LOGS_DIR, current_time), self.sess.graph)
 
-                # train
-                coord = tf.train.Coordinator()
-                threads = tf.train.start_queue_runners(sess=self.sess, coord=coord)
-
                 test_predicted_depths = None
                 images_test = None
                 gt_images_test = None
@@ -517,8 +513,6 @@ class Network(object):
 
                         index += 1
 
-                coord.request_stop()
-                coord.join(threads)
                 writer.flush()
                 writer.close()
 
