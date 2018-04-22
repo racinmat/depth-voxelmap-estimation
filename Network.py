@@ -49,7 +49,7 @@ CHECKPOINT_DIR = os.path.join('checkpoint', current_time)  # Directory name to s
 LOGS_DIR = 'logs'
 
 # GPU_IDX can be either integer, array or None. If None, only GPU is used
-GPU_IDX = [1]
+GPU_IDX = [3]
 # GPU_IDX = None
 
 # WEIGHTS_REGULARIZER = slim.l2_regularizer(CONV_WEIGHT_DECAY)
@@ -227,22 +227,31 @@ class Network(object):
 
                 conv = tf.layers.dropout(conv, rate=0.5)
 
-                conv = slim.conv2d(conv, num_outputs=dataset.DEPTH_DIM + 1, scope='convFinal', kernel_size=3, stride=1,
-                                   normalizer_fn=None, activation_fn=None)
-
-                conv = slim.conv2d_transpose(conv, num_outputs=dataset.DEPTH_DIM + 1, kernel_size=8, stride=4,
-                                             normalizer_fn=None, activation_fn=None, scope='deconvFinal')
+                if IS_VOXELMAP:
+                    conv = slim.conv2d(conv, num_outputs=dataset.DEPTH_DIM, scope='convFinal', kernel_size=3, stride=1,
+                                       normalizer_fn=None, activation_fn=None)
+                    conv = slim.conv2d_transpose(conv, num_outputs=dataset.DEPTH_DIM, kernel_size=8, stride=4,
+                                                 normalizer_fn=None, activation_fn=None, scope='deconvFinal')
+                else:
+                    conv = slim.conv2d(conv, num_outputs=dataset.DEPTH_DIM + 1, scope='convFinal', kernel_size=3, stride=1,
+                                       normalizer_fn=None, activation_fn=None)
+                    conv = slim.conv2d_transpose(conv, num_outputs=dataset.DEPTH_DIM + 1, kernel_size=8, stride=4,
+                                                 normalizer_fn=None, activation_fn=None, scope='deconvFinal')
 
                 probs = slim.softmax(conv, 'softmaxFinal')
                 probs = tf.identity(probs, 'inference')
                 conv = tf.identity(conv, 'logits')
+                print('conv.shape', conv.shape)
                 return probs, conv
 
     def loss(self, logits):
         H = dataset.TARGET_HEIGHT
         W = dataset.TARGET_WIDTH
         # size is depth dim + 1, because 1 layer is for too distant points, outside of desired area
-        self.y = tf.placeholder(tf.float32, shape=[None, H, W, dataset.DEPTH_DIM + 1], name='y')
+        if IS_VOXELMAP:
+            self.y = tf.placeholder(tf.float32, shape=[None, H, W, dataset.DEPTH_DIM], name='y')
+        else:
+            self.y = tf.placeholder(tf.float32, shape=[None, H, W, dataset.DEPTH_DIM + 1], name='y')
         self.y_image = tf.placeholder(tf.float32, shape=[None, H, W], name='y_image')
         self.y_image_rank4 = tf.expand_dims(self.y_image, 3)
         self.y_image_orig = tf.placeholder(tf.float32, shape=[None, H, W, 1], name='y_orig')
@@ -256,12 +265,20 @@ class Network(object):
         return cost
 
     def metrics(self, estimated_depths_images):
-        print('self.y_image_rank4 shape:', self.y_image_rank4.shape)
-        print('estimated_depths_images shape:', estimated_depths_images.shape)
-        treshold = metrics_tf.accuracy_under_treshold(self.y_image_rank4, estimated_depths_images, 1.25)
-        mre = metrics_tf.mean_relative_error(self.y_image_rank4, estimated_depths_images)
-        rms = metrics_tf.root_mean_squared_error(self.y_image_rank4, estimated_depths_images)
-        rmls = metrics_tf.root_mean_squared_log_error(self.y_image_rank4, estimated_depths_images)
+        if IS_VOXELMAP:
+            print('self.y_image_rank4 shape:', self.y_image.shape)
+            print('estimated_depths_images shape:', estimated_depths_images.shape)
+            treshold = metrics_tf.accuracy_under_treshold(self.y_image, estimated_depths_images, 1.25)
+            mre = metrics_tf.mean_relative_error(self.y_image, estimated_depths_images)
+            rms = metrics_tf.root_mean_squared_error(self.y_image, estimated_depths_images)
+            rmls = metrics_tf.root_mean_squared_log_error(self.y_image, estimated_depths_images)
+        else:
+            print('self.y_image_rank4 shape:', self.y_image_rank4.shape)
+            print('estimated_depths_images shape:', estimated_depths_images.shape)
+            treshold = metrics_tf.accuracy_under_treshold(self.y_image_rank4, estimated_depths_images, 1.25)
+            mre = metrics_tf.mean_relative_error(self.y_image_rank4, estimated_depths_images)
+            rms = metrics_tf.root_mean_squared_error(self.y_image_rank4, estimated_depths_images)
+            rmls = metrics_tf.root_mean_squared_log_error(self.y_image_rank4, estimated_depths_images)
 
         tf.summary.scalar("under treshold 1.25", treshold)
         tf.summary.scalar("mean relative error", mre)
@@ -301,13 +318,18 @@ class Network(object):
     @staticmethod
     def voxelmap_to_depth(voxels):
         # this visualizes voxelmap as depth image
-        print('voxels.shape', voxels.shape)
-        voxels = tf.reverse(voxels, axis=[3])
-        depth_size = voxels.shape[3]
-        depth = tf.argmax(voxels, axis=3)
+        depth_size = voxels.shape[3].value
+        # by https://stackoverflow.com/questions/45115650/how-to-find-tensorflow-max-value-index-but-the-value-is-repeat
+        indices = tf.range(1, depth_size + 1)   # so there is no multiplication by 0 on this side, only 0 in voxelmap will force the 0
+        indices = tf.expand_dims(indices, 0)
+        indices = tf.expand_dims(indices, 0)
+        indices = tf.expand_dims(indices, 0)
 
-        depth *= int(255 / depth_size)  # normalizing to use all of classing png values
-
+        depth = tf.argmax(tf.multiply(
+            tf.cast(tf.equal(voxels, True), dtype=tf.int32),
+            tf.tile(indices, [BATCH_SIZE, dataset.TARGET_HEIGHT, dataset.TARGET_WIDTH, 1])
+        ), axis=2, output_type=tf.int32)
+        depth = tf.scalar_mul(tf.constant(255 / depth_size, dtype=tf.float32), tf.cast(depth, dtype=tf.float32))  # normalizing to use all of classing png values
         return depth
 
     def prepare(self):
@@ -477,8 +499,6 @@ class Network(object):
                 writer = tf.summary.FileWriter(os.path.join(LOGS_DIR, current_time), self.sess.graph)
 
                 test_predicted_depths = None
-                images_test = None
-                gt_images_test = None
                 samples_test = None
 
                 index = 0
