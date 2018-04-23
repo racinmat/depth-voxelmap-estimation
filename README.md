@@ -28,6 +28,7 @@ Runs:
  - 2018-04-02--02-59-31 Nadam, epsilon=1e-8 (default), no decaying learning rate, still 1e-4
  - 2018-04-05--09-15-19 momentum optimizer with nesterov, momentum=0.999
  - 2018-04-05--09-22-22 momentum optimizer with nesterov, momentum=0.9
+ - 2018-04-05--09-22-22 training voxelmaps, momentum optimizer with nesterov, momentum=0.9
 
 dgs s momentem a nesteroff momentem je lepší než adam
  In train-nyu and test-nyu, data from train are split in ratio 80:20

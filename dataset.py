@@ -80,6 +80,7 @@ class DataSet:
 
     def filenames_to_batch(self, filename_pairs):
         data_pairs = filename_pairs.map(self.filenames_to_data)
+        data_pairs = data_pairs.repeat()  # Repeat the input indefinitely
         data_pairs = data_pairs.batch(self.batch_size)
 
         iterator = data_pairs.make_one_shot_iterator()
@@ -109,6 +110,7 @@ class DataSet:
 
     def filenames_to_batch_voxel(self, filename_pairs):
         data_pairs = filename_pairs.map(self.filenames_to_data_voxel)
+        data_pairs = data_pairs.repeat()  # Repeat the input indefinitely
         data_pairs = data_pairs.batch(self.batch_size)
 
         iterator = data_pairs.make_one_shot_iterator()
@@ -230,7 +232,6 @@ class DataSet:
                 depth = depth[:, :, 0]
             if len(gt_depth.shape) == 3:
                 gt_depth = gt_depth[:, :, 0]
-            gt_depth = gt_depth[:, :, 0]
 
             # input image
             pilimg = Image.fromarray(np.uint8(image))
