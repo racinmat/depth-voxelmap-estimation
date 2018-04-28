@@ -27,13 +27,30 @@ def tf_labels_to_info_gain(labels, logits, alpha=0.2):
 
 
 def information_gain_loss(labels, logits, alpha=0.2):
+    # unknown voxels have -1 values, so we unify it with free voxels here for BC
+    labels_obstacles = tf.maximum(labels, tf.zeros_like(labels))
     loss = tf.reduce_mean(
         tf.nn.softmax_cross_entropy_with_logits(
-            labels=tf_labels_to_info_gain(labels=labels, logits=logits, alpha=alpha),
+            labels=tf_labels_to_info_gain(labels=labels_obstacles, logits=logits, alpha=alpha),
             logits=logits))
     return tf.identity(loss, 'loss')
 
 
 def softmax_loss(labels, logits):
-    loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
+    labels_obstacles = tf.maximum(labels, tf.zeros_like(labels))
+    loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels_obstacles, logits=logits))
+    return tf.identity(loss, 'loss')
+
+
+def softmax_loss_with_undefined(labels, logits):
+    # unknown voxels have -1 values, so we unify it with free voxels here for BC
+    labels_obstacles = tf.maximum(labels, tf.zeros_like(labels))
+    loss = tf.reduce_mean(
+        tf.multiply(
+            tf.nn.softmax_cross_entropy_with_logits(
+                labels=labels_obstacles,
+                logits=logits),
+            tf.not_equal(labels, -1)
+        )
+    )
     return tf.identity(loss, 'loss')
