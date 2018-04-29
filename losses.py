@@ -44,13 +44,34 @@ def softmax_loss(labels, logits):
 
 def softmax_loss_with_undefined(labels, logits):
     # unknown voxels have -1 values, so we unify it with free voxels here for BC
+    # print(labels.shape)
+    print(logits.shape)
     labels_obstacles = tf.maximum(labels, tf.zeros_like(labels))
+    print(labels_obstacles.shape)
+    print(tf.not_equal(labels, - tf.ones_like(labels)).shape)
+    # print(tf.nn.softmax_cross_entropy_with_logits(
+    #             labels=labels_obstacles,
+    #             logits=logits).shape)
+    # loss = tf.reduce_mean(
+    #         tf.nn.weighted_cross_entropy_with_logits(
+    #             targets=labels_obstacles,
+    #             logits=logits,
+    #             pos_weight=tf.not_equal(labels, - tf.ones_like(labels))),
+    #     )
+    # loss = tf.reduce_mean(
+    #     tf.multiply(
+    #         tf.nn.softmax_cross_entropy_with_logits(
+    #             labels=labels_obstacles,
+    #             logits=logits),
+    #         tf.not_equal(labels, - tf.ones_like(labels))
+    #     )
+    # )
     loss = tf.reduce_mean(
-        tf.multiply(
-            tf.nn.softmax_cross_entropy_with_logits(
-                labels=labels_obstacles,
-                logits=logits),
-            tf.not_equal(labels, -1)
+        tf.losses.mean_squared_error(
+            labels=labels_obstacles,
+            predictions=tf.nn.softmax(logits),
+            weights=tf.not_equal(labels, - tf.ones_like(labels))
         )
     )
+    # masking by weighted crossentropy, unknown values give us 0, known values give us 1
     return tf.identity(loss, 'loss')
