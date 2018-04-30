@@ -6,6 +6,8 @@ import metrics_np
 from prettytable import PrettyTable
 import os
 import Network
+from gta_math import grid_to_ndc_pcl_linear_view, ndc_to_view
+from visualization import save_pointcloud_csv
 
 
 def load_model_with_structure(model_name, graph, sess):
@@ -29,14 +31,14 @@ def load_model_with_structure(model_name, graph, sess):
     return True, input, last_layer
 
 
-def inference(model, input, rgb_image, graph, sess):
+def inference(model, input, rgb_image, sess):
     image_val = sess.run(model, feed_dict={
         input: rgb_image
     })
     return image_val
 
 
-def evaluate_model(model_name, needs_conversion, rgb_img, truth_img):
+def evaluate_model(model_name, rgb_img, truth_img):
     # not running on any GPU, using only CPU
     config = tf.ConfigProto(
         device_count={'GPU': 0}
@@ -44,9 +46,7 @@ def evaluate_model(model_name, needs_conversion, rgb_img, truth_img):
     with tf.Graph().as_default() as graph:
         with tf.Session(config=config) as sess:
             _, input, model = load_model_with_structure(model_name, graph, sess)
-            if needs_conversion:
-                model = Network.Network.bins_to_depth(model)
-            pred_img = inference(model, input, rgb_img, graph, sess)
+            pred_img = inference(model, input, rgb_img, sess)
 
     # return pred_img, {
     #     'treshold_1.25': metrics_np.accuracy_under_treshold(truth_img, pred_img, 1.25),
@@ -74,7 +74,9 @@ def get_evaluation_names():
     ]
 
 
-def grid_voxelmap_to_pointcloud():
+def grid_voxelmap_to_pointcloud(ndc_grid):
+    z_meters_min = 1.5
+    z_meters_max = 25
     proj_matrix = np.array([[1.21006660e+00, 0.00000000e+00, 0.00000000e+00,
                              0.00000000e+00],
                             [0.00000000e+00, 2.14450692e+00, 0.00000000e+00,
@@ -83,48 +85,29 @@ def grid_voxelmap_to_pointcloud():
                              1.50022495e+00],
                             [0.00000000e+00, 0.00000000e+00, -1.00000000e+00,
                              0.00000000e+00]])
+    ndc_points_reconst = grid_to_ndc_pcl_linear_view(ndc_grid, proj_matrix, z_meters_min, z_meters_max)
+    ndc_points_reconst = np.hstack((ndc_points_reconst, np.ones((ndc_points_reconst.shape[0], 1)))).T
+
+    view_points_reconst = ndc_to_view(ndc_points_reconst, proj_matrix)
+    return view_points_reconst
 
 
-if __name__ == '__main__':
-    model_names = [
-        # format is name, needs conversion from bins
-        '2018-04-23--08-15-23',
-    ]
-
-    images = np.array([
-        ['ml-datasets-voxel/2018-03-07--17-52-29--004.jpg', 'ml-datasets-voxel/2018-03-07--17-52-29--004.jpg'],
-        ['ml-datasets-voxel/2018-03-07--16-40-51--211.jpg', 'ml-datasets-voxel/2018-03-07--16-40-51--211.jpg'],
-        ['ml-datasets-voxel/2018-03-07--15-44-35--835.jpg', 'ml-datasets-voxel/2018-03-07--15-44-35--835.jpg'],
-        ['ml-datasets-voxel/2018-03-07--15-22-14--222.jpg', 'ml-datasets-voxel/2018-03-07--15-22-14--222.jpg'],
-    ])
-
-    Network.BATCH_SIZE = len(images)
-    ds = dataset.DataSet(len(images))
-    records = tf.train.input_producer(images)
-    res = records.dequeue()
-    images, depths, _, _ = ds.filenames_to_batch_voxel(res)
-    config = tf.ConfigProto(
-        device_count={'GPU': 0}
-    )
-    with tf.Session(config=config) as sess:
-        batch_rgb, batch_voxels = sess.run(
-            [images, depths])
-    print('evaluation dataset loaded')
-
+def evaluate_depth_metrics(batch_rgb, batch_depths, model_names):
     for i in range(Network.BATCH_SIZE):
         im = Image.fromarray(batch_rgb[i, :, :, :].astype(np.uint8))
         im.save("evaluate/orig-rgb-{}.png".format(i))
 
-        voxels = batch_voxels[i, :, :, :]
+        depths = batch_depths[i, :, :, :]
 
-        voxels.save()
+        depths.save()
 
     column_names = get_evaluation_names()
     column_names.append('name')
     x = PrettyTable(column_names)
 
-    for model_name, needs_conv in model_names:
-        pred_img, accuracies = evaluate_model(model_name, needs_conv, batch_rgb, batch_voxels)
+    for model_name in model_names:
+        pred_img, accuracies = evaluate_model(model_name, batch_rgb, batch_depths)
+
         # accuracies['name'] = model_name
         # x.add_row(accuracies.values())
         accuracies.append(model_name)
@@ -145,3 +128,55 @@ if __name__ == '__main__':
             im.save("evaluate/predicted-{}-{}.png".format(i, model_name))
 
     print(x)
+
+
+def predict_voxels_to_pointcloud(batch_rgb, batch_depths, model_names):
+    for i in range(Network.BATCH_SIZE):
+        im = Image.fromarray(batch_rgb[i, :, :, :].astype(np.uint8))
+        im.save("evaluate/orig-rgb-{}.png".format(i))
+
+        voxels = batch_depths[i, :, :, :]
+        pcl = grid_voxelmap_to_pointcloud(voxels)
+        save_pointcloud_csv(pcl.T[:, 0:3], "evaluate/orig-voxelmap-{}.csv".format(i))
+
+    for model_name in model_names:
+        pred_voxels, _ = evaluate_model(model_name, batch_rgb, batch_depths)
+
+        # saving images
+        for i in range(Network.BATCH_SIZE):
+            pred_voxelmap = pred_voxels[i, :, :, :]
+            pcl = grid_voxelmap_to_pointcloud(pred_voxelmap)
+            save_pointcloud_csv(pcl.T[:, 0:3], "evaluate/prd-voxelmap-{}.csv".format(i))
+
+
+def main():
+    model_names = [
+        '2018-04-29--22-35-13',
+    ]
+
+    images = np.array([
+        ['ml-datasets-voxel/2018-03-07--17-52-29--004.jpg', 'ml-datasets-voxel/2018-03-07--17-52-29--004.jpg'],
+        ['ml-datasets-voxel/2018-03-07--16-40-51--211.jpg', 'ml-datasets-voxel/2018-03-07--16-40-51--211.jpg'],
+        ['ml-datasets-voxel/2018-03-07--15-44-35--835.jpg', 'ml-datasets-voxel/2018-03-07--15-44-35--835.jpg'],
+        ['ml-datasets-voxel/2018-03-07--15-22-14--222.jpg', 'ml-datasets-voxel/2018-03-07--15-22-14--222.jpg'],
+    ])
+
+    Network.BATCH_SIZE = len(images)
+    ds = dataset.DataSet(len(images))
+    records = tf.train.input_producer(images)
+    res = records.dequeue()
+    images, depths, _, _ = ds.filenames_to_batch_voxel(res)
+    config = tf.ConfigProto(
+        device_count={'GPU': 0}
+    )
+    with tf.Session(config=config) as sess:
+        batch_rgb, batch_depths = sess.run(
+            [images, depths])
+    print('evaluation dataset loaded')
+
+    evaluate_depth_metrics(batch_rgb, batch_depths, model_names)
+    predict_voxels_to_pointcloud(batch_rgb, batch_depths, model_names)
+
+
+if __name__ == '__main__':
+    main()
