@@ -98,8 +98,7 @@ def evaluate_depth_metrics(batch_rgb, batch_depths, model_names):
         im.save("evaluate/orig-rgb-{}.png".format(i))
 
         depths = batch_depths[i, :, :, :]
-
-        depths.save()
+        # todo: implement later
 
     column_names = get_evaluation_names()
     column_names.append('name')
@@ -145,8 +144,9 @@ def predict_voxels_to_pointcloud(batch_rgb, batch_depths, model_names):
         # saving images
         for i in range(Network.BATCH_SIZE):
             pred_voxelmap = pred_voxels[i, :, :, :]
+            np.save("evaluate/pred-voxelmap-{}-{}.npy".format(i, model_name), pred_voxelmap)
             pcl = grid_voxelmap_to_pointcloud(pred_voxelmap)
-            save_pointcloud_csv(pcl.T[:, 0:3], "evaluate/prd-voxelmap-{}.csv".format(i))
+            save_pointcloud_csv(pcl.T[:, 0:3], "evaluate/pred-voxelmap-{}-{}.csv".format(i, model_name))
 
 
 def main():
@@ -155,17 +155,16 @@ def main():
     ]
 
     images = np.array([
-        ['ml-datasets-voxel/2018-03-07--17-52-29--004.jpg', 'ml-datasets-voxel/2018-03-07--17-52-29--004.jpg'],
-        ['ml-datasets-voxel/2018-03-07--16-40-51--211.jpg', 'ml-datasets-voxel/2018-03-07--16-40-51--211.jpg'],
-        ['ml-datasets-voxel/2018-03-07--15-44-35--835.jpg', 'ml-datasets-voxel/2018-03-07--15-44-35--835.jpg'],
-        ['ml-datasets-voxel/2018-03-07--15-22-14--222.jpg', 'ml-datasets-voxel/2018-03-07--15-22-14--222.jpg'],
+        ['ml-datasets-voxel/2018-03-07--17-52-29--004.jpg', 'ml-datasets-voxel/2018-03-07--17-52-29--004.npy'],
+        ['ml-datasets-voxel/2018-03-07--16-40-51--211.jpg', 'ml-datasets-voxel/2018-03-07--16-40-51--211.npy'],
+        ['ml-datasets-voxel/2018-03-07--15-44-35--835.jpg', 'ml-datasets-voxel/2018-03-07--15-44-35--835.npy'],
+        ['ml-datasets-voxel/2018-03-07--15-22-14--222.jpg', 'ml-datasets-voxel/2018-03-07--15-22-14--222.npy'],
     ])
 
     Network.BATCH_SIZE = len(images)
     ds = dataset.DataSet(len(images))
-    records = tf.train.input_producer(images)
-    res = records.dequeue()
-    images, depths, _, _ = ds.filenames_to_batch_voxel(res)
+    filename_list = tf.data.Dataset.from_tensor_slices((images[:, 0], images[:, 1]))
+    images, depths, _ = ds.filenames_to_batch_voxel(filename_list)
     config = tf.ConfigProto(
         device_count={'GPU': 0}
     )
@@ -174,7 +173,7 @@ def main():
             [images, depths])
     print('evaluation dataset loaded')
 
-    evaluate_depth_metrics(batch_rgb, batch_depths, model_names)
+    # evaluate_depth_metrics(batch_rgb, batch_depths, model_names)
     predict_voxels_to_pointcloud(batch_rgb, batch_depths, model_names)
 
 

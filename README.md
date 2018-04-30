@@ -31,6 +31,7 @@ Runs:
  - 2018-04-22--21-01-54 training voxelmaps, momentum optimizer with nesterov, momentum=0.9
  - 2018-04-23--08-15-23 training voxelmaps, Nadam, e=1e-8
  - 2018-04-29--22-35-13 training voxelmaps, Nadam, e=1e-8, voxelmaps in view, depths linear in view
+ - 2018-04-30--10-46-45 training voxelmaps, momentum with nesterov, momentum=0.9, voxelmaps in view, depths linear in view
 
 
 dgs s momentem a nesteroff momentem je lepší než adam
