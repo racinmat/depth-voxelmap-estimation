@@ -42,7 +42,7 @@ def softmax_loss(labels, logits):
     return tf.identity(loss, 'loss')
 
 
-def softmax_loss_with_undefined(labels, logits):
+def l2_voxelwise_loss_with_undefined(labels, logits):
     # unknown voxels have -1 values, so we unify it with free voxels here for BC
     # print(labels.shape)
     print(logits.shape)

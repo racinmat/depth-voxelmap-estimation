@@ -38,8 +38,8 @@ BATCH_SIZE = 4  # batch size 8 does not fit to Nvidia GTX 1080 Ti. Hopefully bat
 # TRAIN_FILE = "train-depth-gta.csv"
 # TEST_FILE = "test-depth-gta.csv"
 # for voxelmap
-TRAIN_FILE = "train-voxel-gta-2.csv"
-TEST_FILE = "test-voxel-gta-2.csv"
+TRAIN_FILE = "train-voxel-gta.csv"
+TEST_FILE = "test-voxel-gta.csv"
 # for trying to overfit
 # TRAIN_FILE = "train-gta-small.csv"
 # TEST_FILE = "train-gta-small.csv"
@@ -260,7 +260,7 @@ class Network(object):
         print('logits shape:', logits.shape)
         # cost = self.softmax_loss(labels=self.y, logits=logits)
         # cost = losses.information_gain_loss(labels=self.y, logits=logits)
-        cost = losses.softmax_loss_with_undefined(labels=self.y, logits=logits)
+        cost = losses.l2_voxelwise_loss_with_undefined(labels=self.y, logits=logits)
         tf.summary.scalar("cost", cost)
 
         return cost
