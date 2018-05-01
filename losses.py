@@ -79,13 +79,15 @@ def logistic_voxelwise_loss_with_undefined(labels, logits):
     # print(labels.shape)
     predicted = tf.nn.softmax(logits)
     print(logits.shape)
-    labels_shifted = tf.where(tf.equal(labels, tf.zeros_like(labels)), - tf.ones_like(labels) , labels)  # so 1 is obstacle and -1 is free
-    known_mask = tf.not_equal(labels, - tf.ones_like(labels))
+    labels_shifted = tf.where(tf.equal(labels, tf.zeros_like(labels)), - tf.ones_like(labels), labels)  # so 1 is obstacle and -1 is free
+    known_mask = tf.cast(tf.not_equal(labels, - tf.ones_like(labels)), dtype=tf.float32)
     print(labels_shifted.shape)
+    print(labels_shifted.dtype)
+    print(known_mask.dtype)
     loss = tf.reduce_mean(
         tf.multiply(
             known_mask,
-            tf.log(1 + tf.exp(- tf.multiply(labels_shifted, predicted)))
+            tf.log(tf.ones_like(labels) + tf.exp(- tf.multiply(labels_shifted, predicted)))
         )
     )
     return tf.identity(loss, 'loss')

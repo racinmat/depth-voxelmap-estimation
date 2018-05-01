@@ -49,7 +49,7 @@ CHECKPOINT_DIR = os.path.join('checkpoint', current_time)  # Directory name to s
 LOGS_DIR = 'logs'
 
 # GPU_IDX can be either integer, array or None. If None, only GPU is used
-GPU_IDX = [1]
+GPU_IDX = [0]
 # GPU_IDX = None
 
 # WEIGHTS_REGULARIZER = slim.l2_regularizer(CONV_WEIGHT_DECAY)
@@ -65,7 +65,6 @@ class Network(object):
         self.saver = None
         self.x = None   # input images
         self.y = None   # desired output depth bins
-        # todo: zkontrolovat, že mi fakt nesedí dimenze u vstupů do metrik a opravit to.
         self.y_image_orig = None  # desired output depth images original, not used for voxelmap
         self.y_image = None  # desired output depth images (synthetized from depths)
         self.y_image_rank4 = None  # desired output depth images in rank4
@@ -227,7 +226,9 @@ class Network(object):
 
                 conv = tf.layers.dropout(conv, rate=0.5)
 
-                # exper
+                # experimentally adding one more layer
+
+
                 if IS_VOXELMAP:
                     conv = slim.conv2d(conv, num_outputs=dataset.DEPTH_DIM, scope='convFinal', kernel_size=3, stride=1,
                                        normalizer_fn=None, activation_fn=None)
@@ -261,7 +262,8 @@ class Network(object):
         print('logits shape:', logits.shape)
         # cost = self.softmax_loss(labels=self.y, logits=logits)
         # cost = losses.information_gain_loss(labels=self.y, logits=logits)
-        cost = losses.information_gain_loss_with_undefined(labels=self.y, logits=logits)
+        # cost = losses.information_gain_loss_with_undefined(labels=self.y, logits=logits)
+        cost = losses.logistic_voxelwise_loss_with_undefined(labels=self.y, logits=logits)
         # cost = losses.l2_voxelwise_loss_with_undefined(labels=self.y, logits=logits)
         tf.summary.scalar("cost", cost)
 
