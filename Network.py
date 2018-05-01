@@ -49,7 +49,7 @@ CHECKPOINT_DIR = os.path.join('checkpoint', current_time)  # Directory name to s
 LOGS_DIR = 'logs'
 
 # GPU_IDX can be either integer, array or None. If None, only GPU is used
-GPU_IDX = [0]
+GPU_IDX = [3]
 # GPU_IDX = None
 
 # WEIGHTS_REGULARIZER = slim.l2_regularizer(CONV_WEIGHT_DECAY)
@@ -63,8 +63,8 @@ class Network(object):
     def __init__(self):
         self.sess = None
         self.saver = None
-        self.x = None   # input images
-        self.y = None   # desired output depth bins
+        self.x = None  # input images
+        self.y = None  # desired output depth bins
         self.y_image_orig = None  # desired output depth images original, not used for voxelmap
         self.y_image = None  # desired output depth images (synthetized from depths)
         self.y_image_rank4 = None  # desired output depth images in rank4
@@ -74,9 +74,9 @@ class Network(object):
         self.images_test = None
         self.depths = None  # depth images
         self.depths_test = None
-        self.depth_bins = None   # depth bins
+        self.depth_bins = None  # depth bins
         self.depth_bins_test = None
-        self.depth_reconst = None   # depth images, reconstructed from bins (correct depth range...)
+        self.depth_reconst = None  # depth images, reconstructed from bins (correct depth range...)
         self.depth_reconst_test = None
 
         # GPU settings
@@ -147,7 +147,8 @@ class Network(object):
     def initialize_by_resnet(self):
         # I initialize only trainable variables, not others. Now is unified saving and restoring
         loader = tf.train.Saver(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='network'))
-        loader.restore(self.sess, 'init-weights/resnet')
+        # loader.restore(self.sess, 'init-weights/resnet')
+        loader.restore(self.sess, 'init-weights-2/resnet')    # initialization with new deconv layer
         print('weights initialized')
 
     def inference(self):
@@ -226,16 +227,19 @@ class Network(object):
 
                 conv = tf.layers.dropout(conv, rate=0.5)
 
-                # experimentally adding one more layer
-
-
                 if IS_VOXELMAP:
                     conv = slim.conv2d(conv, num_outputs=dataset.DEPTH_DIM, scope='convFinal', kernel_size=3, stride=1,
                                        normalizer_fn=None, activation_fn=None)
+
+                    # experimentally adding one more layer
+                    conv = slim.conv2d_transpose(conv, num_outputs=int(dataset.DEPTH_DIM / 2), kernel_size=5, stride=1,
+                                                 normalizer_fn=None, activation_fn=None, scope='deconv-prefinal')
+
                     conv = slim.conv2d_transpose(conv, num_outputs=dataset.DEPTH_DIM, kernel_size=8, stride=4,
                                                  normalizer_fn=None, activation_fn=None, scope='deconvFinal')
                 else:
-                    conv = slim.conv2d(conv, num_outputs=dataset.DEPTH_DIM + 1, scope='convFinal', kernel_size=3, stride=1,
+                    conv = slim.conv2d(conv, num_outputs=dataset.DEPTH_DIM + 1, scope='convFinal', kernel_size=3,
+                                       stride=1,
                                        normalizer_fn=None, activation_fn=None)
                     conv = slim.conv2d_transpose(conv, num_outputs=dataset.DEPTH_DIM + 1, kernel_size=8, stride=4,
                                                  normalizer_fn=None, activation_fn=None, scope='deconvFinal')
@@ -324,7 +328,8 @@ class Network(object):
         # this visualizes voxelmap as depth image
         depth_size = voxels.shape[3].value
         # by https://stackoverflow.com/questions/45115650/how-to-find-tensorflow-max-value-index-but-the-value-is-repeat
-        indices = tf.range(1, depth_size + 1)   # so there is no multiplication by 0 on this side, only 0 in voxelmap will force the 0
+        indices = tf.range(1,
+                           depth_size + 1)  # so there is no multiplication by 0 on this side, only 0 in voxelmap will force the 0
         indices = tf.expand_dims(indices, 0)
         indices = tf.expand_dims(indices, 0)
         indices = tf.expand_dims(indices, 0)
@@ -333,7 +338,8 @@ class Network(object):
             tf.cast(tf.equal(voxels, True), dtype=tf.int32),
             tf.tile(indices, [BATCH_SIZE, dataset.TARGET_HEIGHT, dataset.TARGET_WIDTH, 1])
         ), axis=3, output_type=tf.int32)
-        depth = tf.scalar_mul(tf.constant(255 / depth_size, dtype=tf.float32), tf.cast(depth, dtype=tf.float32))  # normalizing to use all of classing png values
+        depth = tf.scalar_mul(tf.constant(255 / depth_size, dtype=tf.float32),
+                              tf.cast(depth, dtype=tf.float32))  # normalizing to use all of classing png values
         return depth
 
     def prepare(self):
@@ -384,7 +390,7 @@ class Network(object):
     def get_samples(self):
         if IS_VOXELMAP:
             images, voxelmaps, gt_depth_reconst = self.sess.run(
-                [self.images,  self.voxelmaps, self.depth_reconst])
+                [self.images, self.voxelmaps, self.depth_reconst])
             return images, voxelmaps, gt_depth_reconst
         else:
             images, depths_bins, gt_images, gt_depth_reconst = self.sess.run(
@@ -513,7 +519,8 @@ class Network(object):
                         # sending images to sess.run so new batch is loaded
                         samples = self.get_samples()
                         # training itself
-                        loss_value, predicted_depths = self.run_train_step(train_op, loss, estimated_depths_images, samples)
+                        loss_value, predicted_depths = self.run_train_step(train_op, loss, estimated_depths_images,
+                                                                           samples)
                         # updating summary
                         if index % 10 == 0:
                             summary_str = self.run_summary_update(summary, samples)
@@ -523,7 +530,10 @@ class Network(object):
                             # loading new test batch
                             samples_test = self.get_samples_test()
                             # testing itself
-                            test_loss_value, test_predicted_depths, test_summary_str = self.run_test_step(loss, estimated_depths_images, test_summary, samples_test)
+                            test_loss_value, test_predicted_depths, test_summary_str = self.run_test_step(loss,
+                                                                                                          estimated_depths_images,
+                                                                                                          test_summary,
+                                                                                                          samples_test)
 
                             writer.add_summary(test_summary_str, index)
                             print(
@@ -533,7 +543,8 @@ class Network(object):
                                     datetime.now(), epoch, i, test_loss_value))
                             assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
                         if index % 500 == 0:
-                            self.run_persist_step(samples, samples_test, data_set, predicted_depths, test_predicted_depths, epoch, i)
+                            self.run_persist_step(samples, samples_test, data_set, predicted_depths,
+                                                  test_predicted_depths, epoch, i)
                             self.save_model(self.sess, index)
 
                         index += 1

@@ -30,8 +30,10 @@ Runs:
  - 2018-04-05--09-22-22 momentum optimizer with nesterov, momentum=0.9
  - 2018-04-22--21-01-54 training voxelmaps, momentum optimizer with nesterov, momentum=0.9
  - 2018-04-23--08-15-23 training voxelmaps, Nadam, e=1e-8
- - 2018-04-29--22-35-13 training voxelmaps, Nadam, e=1e-8, voxelmaps in view, depths linear in view
- - 2018-04-30--10-46-45 training voxelmaps, momentum with nesterov, momentum=0.9, voxelmaps in view, depths linear in view
+ - 2018-04-29--22-35-13 training voxelmaps, l2 loss, Nadam, e=1e-8, voxelmaps in view, depths linear in view (voxelmaps and depths linear in view, and forever onwards)
+ - 2018-04-30--10-46-45 training voxelmaps, l2 loss, momentum with nesterov, momentum=0.9
+ - 2018-05-01--00-20-51 training voxelmaps, logistic loss from paper, nadam
+ - 2018-05-01--01-03-01 training voxelmaps, logistic loss from paper, nadam, new deconv layer, accidentally batchsize=1
 
 
 dgs s momentem a nesteroff momentem je lepší než adam
@@ -39,7 +41,7 @@ dgs s momentem a nesteroff momentem je lepší než adam
  
  
  report of accuracies:
- +--------------------+----------------------+----------------------+---------------------+----------------------+----------------------+
++--------------------+----------------------+----------------------+---------------------+----------------------+----------------------+
 |   treshold_1.25    |     mean_rel_err     |         rms          |       rms_log       |      log10_err       |         name         |
 +--------------------+----------------------+----------------------+---------------------+----------------------+----------------------+
 |     0.98328125     | 0.044797583685980906 | 0.025788567528874328 | 0.03040171146706071 | 0.018311002519395617 | 2018-03-11--23-23-32 |

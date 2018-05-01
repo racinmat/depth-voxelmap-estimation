@@ -34,7 +34,7 @@ with tf.Graph().as_default():
     a = print_tensors_in_checkpoint_file(file_name=checkpoint_name, all_tensors=True, tensor_name=None)
     print(a)
     b = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
-    sess = tf.Session()
+    sess = tf.Session(config=tf.ConfigProto(device_count={'GPU': 0}))
     saver.restore(sess, checkpoint_name)
 
     network = Network.Network()
@@ -132,4 +132,5 @@ with tf.Graph().as_default():
     sess.run(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='network'))     # so all weights are actually being assigned
     print('tensors runs, going to save them')
     new_saver = tf.train.Saver(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='network'))
-    new_saver.save(sess, 'init-weights/resnet')
+    # new_saver.save(sess, 'init-weights/resnet')   # common network
+    new_saver.save(sess, 'init-weights-2/resnet')     # experimental, second deconvolution
