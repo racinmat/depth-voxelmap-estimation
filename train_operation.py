@@ -18,7 +18,7 @@ def train(total_loss, global_step, batch_size):
     lr = tf.constant(INITIAL_LEARNING_RATE)
     tf.summary.scalar('learning_rate', lr)
     # opt = tf.train.AdamOptimizer(lr, epsilon=1e-5)
-    # opt = tf.contrib.opt.NadamOptimizer(lr, epsilon=1e-8)
-    opt = tf.train.MomentumOptimizer(lr, momentum=0.9, use_nesterov=True)
+    opt = tf.contrib.opt.NadamOptimizer(lr, epsilon=1e-8)
+    # opt = tf.train.MomentumOptimizer(lr, momentum=0.9, use_nesterov=True)
 
     return opt.minimize(total_loss, global_step=global_step)

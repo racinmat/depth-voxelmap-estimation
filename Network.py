@@ -49,7 +49,7 @@ CHECKPOINT_DIR = os.path.join('checkpoint', current_time)  # Directory name to s
 LOGS_DIR = 'logs'
 
 # GPU_IDX can be either integer, array or None. If None, only GPU is used
-GPU_IDX = [0]
+GPU_IDX = [1]
 # GPU_IDX = None
 
 # WEIGHTS_REGULARIZER = slim.l2_regularizer(CONV_WEIGHT_DECAY)
@@ -227,6 +227,7 @@ class Network(object):
 
                 conv = tf.layers.dropout(conv, rate=0.5)
 
+                # exper
                 if IS_VOXELMAP:
                     conv = slim.conv2d(conv, num_outputs=dataset.DEPTH_DIM, scope='convFinal', kernel_size=3, stride=1,
                                        normalizer_fn=None, activation_fn=None)
@@ -260,7 +261,8 @@ class Network(object):
         print('logits shape:', logits.shape)
         # cost = self.softmax_loss(labels=self.y, logits=logits)
         # cost = losses.information_gain_loss(labels=self.y, logits=logits)
-        cost = losses.l2_voxelwise_loss_with_undefined(labels=self.y, logits=logits)
+        cost = losses.information_gain_loss_with_undefined(labels=self.y, logits=logits)
+        # cost = losses.l2_voxelwise_loss_with_undefined(labels=self.y, logits=logits)
         tf.summary.scalar("cost", cost)
 
         return cost
