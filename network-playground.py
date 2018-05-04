@@ -95,22 +95,22 @@ if __name__ == '__main__':
             estimated_depths_images = Network.Network.bins_to_depth(estimated_depths)
 
             # metrics for discretization itself
-            treshold_gt = metrics_tf.accuracy_under_treshold(depth, depth_reconstructed, 1.25)
-            mre_gt = metrics_tf.mean_relative_error(depth, depth_reconstructed)
-            rms_gt = metrics_tf.root_mean_squared_error(depth, depth_reconstructed)
-            rmls_gt = metrics_tf.root_mean_squared_log_error(depth, depth_reconstructed)
+            treshold_gt = metrics_tf.depth_accuracy_under_treshold(depth, depth_reconstructed, 1.25)
+            mre_gt = metrics_tf.depth_mean_relative_error(depth, depth_reconstructed)
+            rms_gt = metrics_tf.depth_root_mean_squared_error(depth, depth_reconstructed)
+            rmls_gt = metrics_tf.depth_root_mean_squared_log_error(depth, depth_reconstructed)
 
             # metrics for training
-            treshold = metrics_tf.accuracy_under_treshold(depth_reconstructed, estimated_depths_images, 1.25)
-            mre = metrics_tf.mean_relative_error(depth_reconstructed, estimated_depths_images)
-            rms = metrics_tf.root_mean_squared_error(depth_reconstructed, estimated_depths_images)
-            rmls = metrics_tf.root_mean_squared_log_error(depth_reconstructed, estimated_depths_images)
+            treshold = metrics_tf.depth_accuracy_under_treshold(depth_reconstructed, estimated_depths_images, 1.25)
+            mre = metrics_tf.depth_mean_relative_error(depth_reconstructed, estimated_depths_images)
+            rms = metrics_tf.depth_root_mean_squared_error(depth_reconstructed, estimated_depths_images)
+            rmls = metrics_tf.depth_root_mean_squared_log_error(depth_reconstructed, estimated_depths_images)
 
             # metrics for training in wrong implementation to check the behaviour
-            treshold_wrong = metrics_tf.accuracy_under_treshold(depths_discretized_ft, estimated_depths_images, 1.25)
-            mre_wrong = metrics_tf.mean_relative_error(depths_discretized_ft, estimated_depths_images)
-            rms_wrong = metrics_tf.root_mean_squared_error(depths_discretized_ft, estimated_depths_images)
-            rmls_wrong = metrics_tf.root_mean_squared_log_error(depths_discretized_ft, estimated_depths_images)
+            treshold_wrong = metrics_tf.depth_accuracy_under_treshold(depths_discretized_ft, estimated_depths_images, 1.25)
+            mre_wrong = metrics_tf.depth_mean_relative_error(depths_discretized_ft, estimated_depths_images)
+            rms_wrong = metrics_tf.depth_root_mean_squared_error(depths_discretized_ft, estimated_depths_images)
+            rmls_wrong = metrics_tf.depth_root_mean_squared_log_error(depths_discretized_ft, estimated_depths_images)
 
             coord = tf.train.Coordinator()
             threads = tf.train.start_queue_runners(sess=sess, coord=coord)

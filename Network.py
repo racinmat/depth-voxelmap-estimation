@@ -56,6 +56,7 @@ GPU_IDX = [3]
 WEIGHTS_REGULARIZER = None
 
 IS_VOXELMAP = True
+USE_SOFTMAX_OUTPUT = False
 
 
 class Network(object):
@@ -244,7 +245,10 @@ class Network(object):
                     conv = slim.conv2d_transpose(conv, num_outputs=dataset.DEPTH_DIM + 1, kernel_size=8, stride=4,
                                                  normalizer_fn=None, activation_fn=None, scope='deconvFinal')
 
-                probs = slim.softmax(conv, 'softmaxFinal')
+                if USE_SOFTMAX_OUTPUT:
+                    probs = slim.softmax(conv, 'softmaxFinal')
+                else:
+                    probs = conv
                 probs = tf.identity(probs, 'inference')
                 conv = tf.identity(conv, 'logits')
                 print('conv.shape', conv.shape)
@@ -264,49 +268,70 @@ class Network(object):
 
         print('labels shape:', self.y.shape)
         print('logits shape:', logits.shape)
+        # depth losses
         # cost = self.softmax_loss(labels=self.y, logits=logits)
         # cost = losses.information_gain_loss(labels=self.y, logits=logits)
         # cost = losses.information_gain_loss_with_undefined(labels=self.y, logits=logits)
-        cost = losses.logistic_voxelwise_loss_with_undefined(labels=self.y, logits=logits)
+
+        # voxelwise losses
+        cost = losses.logistic_voxelwise_loss_with_undefined(labels=self.y, predicted=logits)
         # cost = losses.l2_voxelwise_loss_with_undefined(labels=self.y, logits=logits)
         tf.summary.scalar("cost", cost)
 
         return cost
 
     def metrics(self, estimated_depths_images):
-        treshold, mre, rms, rmls = self.create_metrics(estimated_depths_images)
-        tf.summary.scalar("under treshold 1.25", treshold)
-        tf.summary.scalar("mean relative error", mre)
-        tf.summary.scalar("root mean square error", rms)
-        tf.summary.scalar("root mean log square error", rmls)
+        if IS_VOXELMAP:
+            fpr, tpr, iou, softmax, l1 = self.create_metrics(estimated_depths_images)
+            tf.summary.scalar("false positive rate", fpr)
+            tf.summary.scalar("true positive rate", tpr)
+            tf.summary.scalar("iou", iou)
+            tf.summary.scalar("softmax metric", softmax)
+            tf.summary.scalar("l1 dist on known", l1)
+        else:
+            treshold, mre, rms, rmls = self.create_metrics(estimated_depths_images)
+            tf.summary.scalar("under treshold 1.25", treshold)
+            tf.summary.scalar("mean relative error", mre)
+            tf.summary.scalar("root mean square error", rms)
+            tf.summary.scalar("root mean log square error", rmls)
 
     def create_metrics(self, estimated_depths_images):
         if IS_VOXELMAP:
-            print('self.y_image shape:', self.y_image.shape)
-            print('estimated_depths_images shape:', estimated_depths_images.shape)
-            treshold = metrics_tf.accuracy_under_treshold(self.y_image, estimated_depths_images, 1.25)
-            mre = metrics_tf.mean_relative_error(self.y_image, estimated_depths_images)
-            rms = metrics_tf.root_mean_squared_error(self.y_image, estimated_depths_images)
-            rmls = metrics_tf.root_mean_squared_log_error(self.y_image, estimated_depths_images)
+            voxelmap_pred = estimated_depths_images
+            print('self.y shape:', self.y.shape)
+            print('voxelmap_pred shape:', voxelmap_pred.shape)
+            fpr = metrics_tf.voxel_false_positive_error(self.y, voxelmap_pred)
+            tpr = metrics_tf.voxel_true_positive_error(self.y, voxelmap_pred)
+            iou = metrics_tf.voxel_iou_error(self.y, voxelmap_pred)
+            softmax = losses.softmax_voxelwise_loss_with_undefined(self.y, voxelmap_pred)
+            l1 = metrics_tf.voxel_l1_dist_with_unknown(self.y, voxelmap_pred)
+            return fpr, tpr, iou, softmax, l1
         else:
             print('self.y_image_rank4 shape:', self.y_image_rank4.shape)
             print('estimated_depths_images shape:', estimated_depths_images.shape)
-            treshold = metrics_tf.accuracy_under_treshold(self.y_image_rank4, estimated_depths_images, 1.25)
-            mre = metrics_tf.mean_relative_error(self.y_image_rank4, estimated_depths_images)
-            rms = metrics_tf.root_mean_squared_error(self.y_image_rank4, estimated_depths_images)
-            rmls = metrics_tf.root_mean_squared_log_error(self.y_image_rank4, estimated_depths_images)
-        return treshold, mre, rms, rmls
+            treshold = metrics_tf.depth_accuracy_under_treshold(self.y_image_rank4, estimated_depths_images, 1.25)
+            mre = metrics_tf.depth_mean_relative_error(self.y_image_rank4, estimated_depths_images)
+            rms = metrics_tf.depth_root_mean_squared_error(self.y_image_rank4, estimated_depths_images)
+            rmls = metrics_tf.depth_root_mean_squared_log_error(self.y_image_rank4, estimated_depths_images)
+            return treshold, mre, rms, rmls
 
     def test_metrics(self, cost, estimated_depths_images):
-        treshold, mre, rms, rmls = self.create_metrics(estimated_depths_images)
-
-        sum1 = tf.summary.scalar("test-cost", cost)
-        sum2 = tf.summary.scalar("test-under treshold 1.25", treshold)
-        sum3 = tf.summary.scalar("test-mean relative error", mre)
-        sum4 = tf.summary.scalar("test-root mean square error", rms)
-        sum5 = tf.summary.scalar("test-root mean log square error", rmls)
-        sum6 = tf.summary.image("test-predicted_depths", tf.expand_dims(estimated_depths_images, 3))
-        return tf.summary.merge([sum1, sum2, sum3, sum4, sum5, sum6])
+        if IS_VOXELMAP:
+            fpr, tpr, iou, softmax, l1 = self.create_metrics(estimated_depths_images)
+            tf.summary.scalar("test-false positive rate", fpr)
+            tf.summary.scalar("test-true positive rate", tpr)
+            tf.summary.scalar("test-iou", iou)
+            tf.summary.scalar("test-softmax metric", softmax)
+            tf.summary.scalar("test-l1 dist on known", l1)
+        else:
+            treshold, mre, rms, rmls = self.create_metrics(estimated_depths_images)
+            sum1 = tf.summary.scalar("test-cost", cost)
+            sum2 = tf.summary.scalar("test-under treshold 1.25", treshold)
+            sum3 = tf.summary.scalar("test-mean relative error", mre)
+            sum4 = tf.summary.scalar("test-root mean square error", rms)
+            sum5 = tf.summary.scalar("test-root mean log square error", rmls)
+            sum6 = tf.summary.image("test-predicted_depths", tf.expand_dims(estimated_depths_images, 3))
+            return tf.summary.merge([sum1, sum2, sum3, sum4, sum5, sum6])
 
     @staticmethod
     def bins_to_depth(depth_bins):

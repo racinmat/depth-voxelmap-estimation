@@ -25,7 +25,7 @@ def load_model_with_structure(model_name, graph, sess):
     saver = tf.train.import_meta_graph(meta_file)
     saver.restore(sess, data_file)
     counter = int(next(re.finditer("(\d+)(?!.*\d)", checkpoint_name)).group(0))
-    last_layer = graph.get_tensor_by_name('network/softmaxFinal/Reshape_1:0')
+    last_layer = graph.get_tensor_by_name('network/inference/Reshape_1:0')
     input = graph.get_tensor_by_name('network/x:0')
     print(" [*] Success to read {} in iteration {}".format(checkpoint_name, counter))
     return True, input, last_layer
@@ -49,11 +49,11 @@ def evaluate_model(model_name, rgb_img, truth_img):
             pred_img = inference(model, input, rgb_img, sess)
 
     # return pred_img, {
-    #     'treshold_1.25': metrics_np.accuracy_under_treshold(truth_img, pred_img, 1.25),
-    #     'mean_rel_err': metrics_np.mean_relative_error(truth_img, pred_img),
-    #     'rms': metrics_np.root_mean_squared_error(truth_img, pred_img),
-    #     'rms_log': metrics_np.root_mean_squared_log_error(truth_img, pred_img),
-    #     'log10_err': metrics_np.log10_error(truth_img, pred_img),
+    #     'treshold_1.25': metrics_np.depth_accuracy_under_treshold(truth_img, pred_img, 1.25),
+    #     'mean_rel_err': metrics_np.depth_mean_relative_error(truth_img, pred_img),
+    #     'rms': metrics_np.depth_root_mean_squared_error(truth_img, pred_img),
+    #     'rms_log': metrics_np.depth_root_mean_squared_log_error(truth_img, pred_img),
+    #     'log10_err': metrics_np.depth_log10_error(truth_img, pred_img),
     # }
     return pred_img, [
         metrics_np.accuracy_under_treshold(truth_img, pred_img, 1.25),

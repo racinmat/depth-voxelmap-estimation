@@ -49,11 +49,11 @@ def evaluate_model(model_name, needs_conversion, rgb_img, truth_img):
             pred_img = inference(model, input, rgb_img, graph, sess)
 
     # return pred_img, {
-    #     'treshold_1.25': metrics_np.accuracy_under_treshold(truth_img, pred_img, 1.25),
-    #     'mean_rel_err': metrics_np.mean_relative_error(truth_img, pred_img),
-    #     'rms': metrics_np.root_mean_squared_error(truth_img, pred_img),
-    #     'rms_log': metrics_np.root_mean_squared_log_error(truth_img, pred_img),
-    #     'log10_err': metrics_np.log10_error(truth_img, pred_img),
+    #     'treshold_1.25': metrics_np.depth_accuracy_under_treshold(truth_img, pred_img, 1.25),
+    #     'mean_rel_err': metrics_np.depth_mean_relative_error(truth_img, pred_img),
+    #     'rms': metrics_np.depth_root_mean_squared_error(truth_img, pred_img),
+    #     'rms_log': metrics_np.depth_root_mean_squared_log_error(truth_img, pred_img),
+    #     'log10_err': metrics_np.depth_log10_error(truth_img, pred_img),
     # }
     return pred_img, [
         metrics_np.accuracy_under_treshold(truth_img, pred_img, 1.25),

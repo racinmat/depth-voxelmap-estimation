@@ -74,12 +74,17 @@ def l2_voxelwise_loss_with_undefined(labels, logits):
     return tf.identity(loss, 'loss')
 
 
+def get_known_mask(labels):
+    return tf.cast(tf.not_equal(labels, - tf.ones_like(labels)), dtype=tf.float32)
+
+
 def logistic_voxelwise_loss_with_undefined(labels, predicted):
+    # this loss is class balanced
     # unknown voxels have -1 values, so we unify it with free voxels here for BC
     # print(labels.shape)
     print(predicted.shape)
     labels_shifted = tf.where(tf.equal(labels, tf.zeros_like(labels)), - tf.ones_like(labels), labels)  # so 1 is obstacle and -1 is free
-    known_mask = tf.cast(tf.not_equal(labels, - tf.ones_like(labels)), dtype=tf.float32)
+    known_mask = get_known_mask(labels)
     # now I weight classes so all weights sum to one and after weighting they are balanced
     # 0.5 weight comes to free voxels
     # 0.5 weight comes to occupied voxels
@@ -92,10 +97,15 @@ def logistic_voxelwise_loss_with_undefined(labels, predicted):
     print(labels_shifted.shape)
     print(labels_shifted.dtype)
     print(known_mask.dtype)
-    loss = tf.reduce_mean(
-        tf.multiply(
-            known_mask,
-            tf.log(tf.ones_like(labels) + tf.exp(- tf.multiply(labels_shifted, predicted)))
-        )
-    )
+    loss = tf.reduce_mean(known_mask * tf.log(tf.ones_like(labels) + tf.exp(- labels_shifted * predicted)))
+    return tf.identity(loss, 'loss')
+
+
+def softmax_voxelwise_loss_with_undefined(labels, predicted):
+    # loss from https://arxiv.org/pdf/1604.00449.pdf, but I use reduce
+    # unknown voxels have -1 values, so we unify it with free voxels here for BC
+    # because I use equality to obstacle and free, I don't need masking
+    # to be independent on batch size, I sum all voxels per sample, but mean per samples in batch
+    print(predicted.shape)
+    loss = tf.reduce_mean(tf.reduce_sum(tf.equal(labels, 1) * tf.log(predicted) + tf.equal(labels, 0) * tf.log(1 - predicted), [1, 2, 3]))
     return tf.identity(loss, 'loss')
