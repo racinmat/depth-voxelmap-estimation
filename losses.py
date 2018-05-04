@@ -108,7 +108,10 @@ def logistic_voxelwise_loss_with_undefined(labels, predicted):
     print(labels_shifted.shape)
     print(labels_shifted.dtype)
     print(known_mask.dtype)
-    loss = tf.reduce_mean(known_mask * tf.log(tf.ones_like(labels) + tf.exp(- labels_shifted * predicted)))
+    # known_mask = tf.Print(known_mask, [tf.reduce_sum(known_mask)], 'known mask sum: ')
+    logistic_loss = known_mask * tf.log(tf.ones_like(labels) + tf.exp(- labels_shifted * predicted))
+    loss = tf.reduce_mean(tf.reduce_sum(logistic_loss, [1, 2, 3]))  # loss is too low is I just use mean
+    # loss = tf.Print(loss, [loss], 'loss value: ')
     return tf.identity(loss, 'loss')
 
 
@@ -120,6 +123,5 @@ def softmax_voxelwise_loss_with_undefined(labels, predicted):
     print(predicted.shape)
     positives = tf.cast(tf.equal(labels, 1), dtype=tf.float32) * tf.log(predicted)
     negatives = tf.cast(tf.equal(labels, 0), dtype=tf.float32) * tf.log(1 - predicted)
-    loss = tf.reduce_mean(
-        tf.reduce_sum(positives + negatives, [1, 2, 3]))
+    loss = tf.reduce_mean(tf.reduce_sum(positives + negatives, [1, 2, 3]))
     return tf.identity(loss, 'loss')
