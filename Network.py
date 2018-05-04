@@ -320,11 +320,13 @@ class Network(object):
     def test_metrics(self, cost, estimated_depths):
         if IS_VOXELMAP:
             fpr, tpr, iou, softmax, l1 = self.create_metrics(estimated_depths)
-            tf.summary.scalar("test-false positive rate", fpr)
-            tf.summary.scalar("test-true positive rate", tpr)
-            tf.summary.scalar("test-iou", iou)
-            tf.summary.scalar("test-softmax metric", softmax)
-            tf.summary.scalar("test-l1 dist on known", l1)
+            sum1 = tf.summary.scalar("test-cost", cost)
+            sum2 = tf.summary.scalar("test-false positive rate", fpr)
+            sum3 = tf.summary.scalar("test-true positive rate", tpr)
+            sum4 = tf.summary.scalar("test-iou", iou)
+            sum5 = tf.summary.scalar("test-softmax metric", softmax)
+            sum6 = tf.summary.scalar("test-l1 dist on known", l1)
+            return tf.summary.merge([sum1, sum2, sum3, sum4, sum5, sum6])
         else:
             treshold, mre, rms, rmls = self.create_metrics(estimated_depths)
             sum1 = tf.summary.scalar("test-cost", cost)
