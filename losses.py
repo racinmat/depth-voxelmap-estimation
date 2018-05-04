@@ -74,13 +74,21 @@ def l2_voxelwise_loss_with_undefined(labels, logits):
     return tf.identity(loss, 'loss')
 
 
-def logistic_voxelwise_loss_with_undefined(labels, logits):
+def logistic_voxelwise_loss_with_undefined(labels, predicted):
     # unknown voxels have -1 values, so we unify it with free voxels here for BC
     # print(labels.shape)
-    predicted = tf.nn.softmax(logits)
-    print(logits.shape)
+    print(predicted.shape)
     labels_shifted = tf.where(tf.equal(labels, tf.zeros_like(labels)), - tf.ones_like(labels), labels)  # so 1 is obstacle and -1 is free
     known_mask = tf.cast(tf.not_equal(labels, - tf.ones_like(labels)), dtype=tf.float32)
+    # now I weight classes so all weights sum to one and after weighting they are balanced
+    # 0.5 weight comes to free voxels
+    # 0.5 weight comes to occupied voxels
+    occupied_voxels_num = tf.reduce_sum(tf.equal(labels, 1), [1, 2, 3], keep_dims=True)
+    free_voxels_num = tf.reduce_sum(tf.equal(labels, 0), [1, 2, 3], keep_dims=True)
+    occupied_mask = 1 / (2 * occupied_voxels_num)
+    free_mask = 1 / (2 * free_voxels_num)
+    known_mask = tf.where(tf.equal(labels, 1), occupied_mask, known_mask)
+    known_mask = tf.where(tf.equal(labels, 0), free_mask, known_mask)
     print(labels_shifted.shape)
     print(labels_shifted.dtype)
     print(known_mask.dtype)

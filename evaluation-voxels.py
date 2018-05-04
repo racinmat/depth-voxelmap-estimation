@@ -152,13 +152,23 @@ def predict_voxels_to_pointcloud(batch_rgb, batch_depths, model_names):
 def main():
     model_names = [
         '2018-04-29--22-35-13',
+        '2018-04-30--10-46-45',
+        '2018-05-01--00-20-51',
+        '2018-05-01--01-03-01',
     ]
 
+    # images = np.array([
+    #     ['ml-datasets-voxel/2018-03-07--17-52-29--004.jpg', 'ml-datasets-voxel/2018-03-07--17-52-29--004.npy'],
+    #     ['ml-datasets-voxel/2018-03-07--16-40-51--211.jpg', 'ml-datasets-voxel/2018-03-07--16-40-51--211.npy'],
+    #     ['ml-datasets-voxel/2018-03-07--15-44-35--835.jpg', 'ml-datasets-voxel/2018-03-07--15-44-35--835.npy'],
+    #     ['ml-datasets-voxel/2018-03-07--15-22-14--222.jpg', 'ml-datasets-voxel/2018-03-07--15-22-14--222.npy'],
+    # ])
+    # these are from testing set
     images = np.array([
-        ['ml-datasets-voxel/2018-03-07--17-52-29--004.jpg', 'ml-datasets-voxel/2018-03-07--17-52-29--004.npy'],
-        ['ml-datasets-voxel/2018-03-07--16-40-51--211.jpg', 'ml-datasets-voxel/2018-03-07--16-40-51--211.npy'],
-        ['ml-datasets-voxel/2018-03-07--15-44-35--835.jpg', 'ml-datasets-voxel/2018-03-07--15-44-35--835.npy'],
-        ['ml-datasets-voxel/2018-03-07--15-22-14--222.jpg', 'ml-datasets-voxel/2018-03-07--15-22-14--222.npy'],
+        ['ml-datasets-voxel/2018-03-07--17-18-16--767.jpg', 'ml-datasets-voxel/2018-03-07--17-18-16--767.npy'],
+        ['ml-datasets-voxel/2018-03-07--18-12-04--959.jpg', 'ml-datasets-voxel/2018-03-07--18-12-04--959.npy'],
+        ['ml-datasets-voxel/2018-03-07--16-12-57--023.jpg', 'ml-datasets-voxel/2018-03-07--16-12-57--023.npy'],
+        ['ml-datasets-voxel/2018-03-07--15-44-56--353.jpg', 'ml-datasets-voxel/2018-03-07--15-44-56--353.npy'],
     ])
 
     Network.BATCH_SIZE = len(images)
