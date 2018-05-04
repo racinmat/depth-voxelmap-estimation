@@ -1,6 +1,6 @@
 import tensorflow as tf
-
 import losses
+from losses import is_obstacle, is_free
 
 
 def depth_accuracy_under_treshold(truth_img, predicted_img, treshold=1.25):
@@ -49,13 +49,14 @@ def log(x, base):
 #     pass
 #
 
+
 def voxel_false_positive_error(voxel_gt, voxel_pred):
     # formula is FP / FP + TN
     # formula is false positive / (false positive + true negative)
     # TN = true negative means voxel_pred == 0 & voxel_gt == 0
     # FP = false positive means voxel_pred == 1 & voxel_gt == 0
-    tn = tf.reduce_sum(tf.equal(voxel_gt, 0) & tf.equal(voxel_pred, 0))
-    fp = tf.reduce_sum(tf.equal(voxel_gt, 1) & tf.equal(voxel_pred, 0))
+    tn = tf.reduce_sum(is_free(voxel_gt) & is_free(voxel_pred))
+    fp = tf.reduce_sum(is_obstacle(voxel_gt) & is_free(voxel_pred))
     return fp / (fp + tn)
 
 
@@ -64,24 +65,20 @@ def voxel_true_positive_error(voxel_gt, voxel_pred):
     # formula is true positive / (false negative + true positive)
     # FN = false negative means voxel_pred == 0 & voxel_gt == 1
     # TP = true positive means voxel_pred == 1 & voxel_gt == 1
-    obst_pred = tf.equal(voxel_pred, 1)
-    obst_gt = tf.equal(voxel_gt, 1)
-    free_gt = tf.equal(voxel_gt, 0)
-    fn = tf.reduce_sum(free_gt & obst_pred)
-    tp = tf.reduce_sum(obst_gt & obst_pred)
+    fn = tf.reduce_sum(is_free(voxel_gt) & is_obstacle(voxel_pred))
+    tp = tf.reduce_sum(is_obstacle(voxel_gt) & is_obstacle(voxel_pred))
     return tp / (fn + tp)
 
 
 def voxel_iou_error(voxel_gt, voxel_pred):
     # https://arxiv.org/pdf/1604.00449.pdf
-    obst_pred = tf.equal(voxel_pred, 1)
-    obst_gt = tf.equal(voxel_gt, 1)
+    obst_pred = is_obstacle(voxel_pred)
+    obst_gt = is_obstacle(voxel_gt)
     return tf.reduce_sum(obst_gt & obst_pred) / tf.reduce_sum(obst_gt | obst_pred)
 
 
 def voxel_l1_dist_with_unknown(voxel_gt, voxel_pred):
     # https://arxiv.org/pdf/1612.00101.pdf simple l1 dist, but masked
     known_mask = losses.get_known_mask(voxel_gt)
-    obst_pred = tf.equal(voxel_pred, 1)
-    obst_gt = tf.equal(voxel_gt, 1)
-    return tf.reduce_mean(tf.reduce_sum(known_mask * tf.abs(voxel_gt - voxel_pred), [1, 2, 3]))
+    obst_pred = is_obstacle(voxel_pred)
+    return tf.reduce_mean(tf.reduce_sum(known_mask * tf.abs(voxel_gt - obst_pred), [1, 2, 3]))

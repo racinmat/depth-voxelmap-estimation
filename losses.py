@@ -1,5 +1,15 @@
 import tensorflow as tf
 
+OBSTACLE_THRESHOLD = 0.6    # probably need to tune it later, used when output is not softmaxed
+
+
+def is_obstacle(voxel):
+    return voxel >= OBSTACLE_THRESHOLD
+
+
+def is_free(voxel):
+    return (voxel < OBSTACLE_THRESHOLD) & (voxel >= 0)  # just check o be compatible with unknown voxels
+
 
 def tf_labels_to_info_gain(labels, logits, alpha=0.2):
     # int 16 stačí, protože je to index binu pro hloubku
@@ -79,6 +89,7 @@ def get_known_mask(labels):
 
 
 def logistic_voxelwise_loss_with_undefined(labels, predicted):
+    # here I don't use thresholding
     # this loss is class balanced
     # unknown voxels have -1 values, so we unify it with free voxels here for BC
     # print(labels.shape)
