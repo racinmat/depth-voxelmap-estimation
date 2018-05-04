@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-OBSTACLE_THRESHOLD = 0.6    # probably need to tune it later, used when output is not softmaxed
+OBSTACLE_THRESHOLD = 0.6  # probably need to tune it later, used when output is not softmaxed
 
 
 def is_obstacle(voxel):
@@ -89,20 +89,20 @@ def get_known_mask(labels):
 
 
 def logistic_voxelwise_loss_with_undefined(labels, predicted):
-    # here I don't use thresholding
     # this loss is class balanced
     # unknown voxels have -1 values, so we unify it with free voxels here for BC
     # print(labels.shape)
     print(predicted.shape)
-    labels_shifted = tf.where(tf.equal(labels, tf.zeros_like(labels)), - tf.ones_like(labels), labels)  # so 1 is obstacle and -1 is free
+    labels_shifted = tf.where(tf.equal(labels, tf.zeros_like(labels)), - tf.ones_like(labels),
+                              labels)  # so 1 is obstacle and -1 is free
     known_mask = get_known_mask(labels)
     # now I weight classes so all weights sum to one and after weighting they are balanced
     # 0.5 weight comes to free voxels
     # 0.5 weight comes to occupied voxels
-    occupied_voxels_num = tf.reduce_sum(tf.equal(labels, 1), [1, 2, 3], keep_dims=True)
-    free_voxels_num = tf.reduce_sum(tf.equal(labels, 0), [1, 2, 3], keep_dims=True)
-    occupied_mask = 1 / (2 * occupied_voxels_num)
-    free_mask = 1 / (2 * free_voxels_num)
+    occupied_voxels_num = tf.reduce_sum(tf.cast(tf.equal(labels, 1), dtype=tf.float32), [1, 2, 3], keep_dims=True)
+    free_voxels_num = tf.reduce_sum(tf.cast(tf.equal(labels, 0), dtype=tf.float32), [1, 2, 3], keep_dims=True)
+    occupied_mask = tf.ones_like(labels) * (1 / (2 * occupied_voxels_num))
+    free_mask = tf.ones_like(labels) * (1 / (2 * free_voxels_num))
     known_mask = tf.where(tf.equal(labels, 1), occupied_mask, known_mask)
     known_mask = tf.where(tf.equal(labels, 0), free_mask, known_mask)
     print(labels_shifted.shape)
@@ -118,5 +118,6 @@ def softmax_voxelwise_loss_with_undefined(labels, predicted):
     # because I use equality to obstacle and free, I don't need masking
     # to be independent on batch size, I sum all voxels per sample, but mean per samples in batch
     print(predicted.shape)
-    loss = tf.reduce_mean(tf.reduce_sum(tf.equal(labels, 1) * tf.log(predicted) + tf.equal(labels, 0) * tf.log(1 - predicted), [1, 2, 3]))
+    loss = tf.reduce_mean(
+        tf.reduce_sum(tf.equal(labels, 1) * tf.log(predicted) + tf.equal(labels, 0) * tf.log(1 - predicted), [1, 2, 3]))
     return tf.identity(loss, 'loss')
