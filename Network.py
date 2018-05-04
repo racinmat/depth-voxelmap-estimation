@@ -281,15 +281,16 @@ class Network(object):
 
         return cost
 
-    def metrics(self, estimated_depths_images):
+    def metrics(self, estimated_depths):
         if IS_VOXELMAP:
-            fpr, tpr, iou, softmax, l1 = self.create_metrics(estimated_depths_images)
+            fpr, tpr, iou, softmax, l1 = self.create_metrics(estimated_depths)
             tf.summary.scalar("false positive rate", fpr)
             tf.summary.scalar("true positive rate", tpr)
             tf.summary.scalar("iou", iou)
             tf.summary.scalar("softmax metric", softmax)
             tf.summary.scalar("l1 dist on known", l1)
         else:
+            estimated_depths_images = self.bins_to_depth(estimated_depths)
             treshold, mre, rms, rmls = self.create_metrics(estimated_depths_images)
             tf.summary.scalar("under treshold 1.25", treshold)
             tf.summary.scalar("mean relative error", mre)
@@ -401,7 +402,7 @@ class Network(object):
             tf.summary.image('ground_truth_depths', self.y_image_orig)
             tf.summary.image('predicted_depths', estimated_depths_images)
 
-        self.metrics(estimated_depths_images)
+        self.metrics(estimated_depths)
 
         # this is last layer, need to expand dim, so the tensor is in shape [batch size, height, width, 1]
         for i in range(0, dataset.DEPTH_DIM, 20):
