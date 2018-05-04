@@ -118,8 +118,8 @@ def softmax_voxelwise_loss_with_undefined(labels, predicted):
     # because I use equality to obstacle and free, I don't need masking
     # to be independent on batch size, I sum all voxels per sample, but mean per samples in batch
     print(predicted.shape)
-    positives = tf.cast(tf.equal(labels, 1), dtype=tf.int32) * tf.log(predicted)
-    negatives = tf.cast(tf.equal(labels, 0), dtype=tf.int32) * tf.log(1 - predicted)
+    positives = tf.cast(tf.equal(labels, 1), dtype=tf.float32) * tf.log(predicted)
+    negatives = tf.cast(tf.equal(labels, 0), dtype=tf.float32) * tf.log(1 - predicted)
     loss = tf.reduce_mean(
         tf.reduce_sum(positives + negatives, [1, 2, 3]))
     return tf.identity(loss, 'loss')

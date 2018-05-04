@@ -290,16 +290,15 @@ class Network(object):
             tf.summary.scalar("softmax metric", softmax)
             tf.summary.scalar("l1 dist on known", l1)
         else:
-            estimated_depths_images = self.bins_to_depth(estimated_depths)
-            treshold, mre, rms, rmls = self.create_metrics(estimated_depths_images)
+            treshold, mre, rms, rmls = self.create_metrics(estimated_depths)
             tf.summary.scalar("under treshold 1.25", treshold)
             tf.summary.scalar("mean relative error", mre)
             tf.summary.scalar("root mean square error", rms)
             tf.summary.scalar("root mean log square error", rmls)
 
-    def create_metrics(self, estimated_depths_images):
+    def create_metrics(self, estimated_depths):
         if IS_VOXELMAP:
-            voxelmap_pred = estimated_depths_images
+            voxelmap_pred = estimated_depths
             print('self.y shape:', self.y.shape)
             print('voxelmap_pred shape:', voxelmap_pred.shape)
             fpr = metrics_tf.voxel_false_positive_error(self.y, voxelmap_pred)
@@ -309,6 +308,7 @@ class Network(object):
             l1 = metrics_tf.voxel_l1_dist_with_unknown(self.y, voxelmap_pred)
             return fpr, tpr, iou, softmax, l1
         else:
+            estimated_depths_images = self.bins_to_depth(estimated_depths)
             print('self.y_image_rank4 shape:', self.y_image_rank4.shape)
             print('estimated_depths_images shape:', estimated_depths_images.shape)
             treshold = metrics_tf.depth_accuracy_under_treshold(self.y_image_rank4, estimated_depths_images, 1.25)
@@ -317,22 +317,22 @@ class Network(object):
             rmls = metrics_tf.depth_root_mean_squared_log_error(self.y_image_rank4, estimated_depths_images)
             return treshold, mre, rms, rmls
 
-    def test_metrics(self, cost, estimated_depths_images):
+    def test_metrics(self, cost, estimated_depths):
         if IS_VOXELMAP:
-            fpr, tpr, iou, softmax, l1 = self.create_metrics(estimated_depths_images)
+            fpr, tpr, iou, softmax, l1 = self.create_metrics(estimated_depths)
             tf.summary.scalar("test-false positive rate", fpr)
             tf.summary.scalar("test-true positive rate", tpr)
             tf.summary.scalar("test-iou", iou)
             tf.summary.scalar("test-softmax metric", softmax)
             tf.summary.scalar("test-l1 dist on known", l1)
         else:
-            treshold, mre, rms, rmls = self.create_metrics(estimated_depths_images)
+            treshold, mre, rms, rmls = self.create_metrics(estimated_depths)
             sum1 = tf.summary.scalar("test-cost", cost)
             sum2 = tf.summary.scalar("test-under treshold 1.25", treshold)
             sum3 = tf.summary.scalar("test-mean relative error", mre)
             sum4 = tf.summary.scalar("test-root mean square error", rms)
             sum5 = tf.summary.scalar("test-root mean log square error", rmls)
-            sum6 = tf.summary.image("test-predicted_depths", tf.expand_dims(estimated_depths_images, 3))
+            sum6 = tf.summary.image("test-predicted_depths", tf.expand_dims(estimated_depths, 3))
             return tf.summary.merge([sum1, sum2, sum3, sum4, sum5, sum6])
 
     @staticmethod
@@ -532,7 +532,7 @@ class Network(object):
                 # parameters
                 summary = tf.summary.merge_all()  # merge all summaries to dump them for tensorboard
 
-                test_summary = self.test_metrics(g.get_tensor_by_name('loss:0'), estimated_depths_images)
+                test_summary = self.test_metrics(g.get_tensor_by_name('loss:0'), estimated_depths)
 
                 writer = tf.summary.FileWriter(os.path.join(LOGS_DIR, current_time), self.sess.graph)
 

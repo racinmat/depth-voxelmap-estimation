@@ -55,8 +55,10 @@ def voxel_false_positive_error(voxel_gt, voxel_pred):
     # formula is false positive / (false positive + true negative)
     # TN = true negative means voxel_pred == 0 & voxel_gt == 0
     # FP = false positive means voxel_pred == 1 & voxel_gt == 0
-    tn = tf.reduce_sum(tf.cast(is_free(voxel_gt) & is_free(voxel_pred), dtype=tf.int32))
-    fp = tf.reduce_sum(tf.cast(is_obstacle(voxel_gt) & is_free(voxel_pred), dtype=tf.int32))
+    print('voxel_gt.shape', voxel_gt.shape)
+    print('voxel_pred.shape', voxel_pred.shape)
+    tn = tf.reduce_sum(tf.cast(is_free(voxel_gt) & is_free(voxel_pred), dtype=tf.float32))
+    fp = tf.reduce_sum(tf.cast(is_obstacle(voxel_gt) & is_free(voxel_pred), dtype=tf.float32))
     return fp / (fp + tn)
 
 
@@ -79,6 +81,6 @@ def voxel_iou_error(voxel_gt, voxel_pred):
 
 def voxel_l1_dist_with_unknown(voxel_gt, voxel_pred):
     # https://arxiv.org/pdf/1612.00101.pdf simple l1 dist, but masked
-    known_mask = losses.get_known_mask(voxel_gt)
-    obst_pred = is_obstacle(voxel_pred)
+    known_mask = tf.cast(losses.get_known_mask(voxel_gt), dtype=tf.float32)
+    obst_pred = tf.cast(is_obstacle(voxel_pred), dtype=tf.float32)
     return tf.reduce_mean(tf.reduce_sum(known_mask * tf.abs(voxel_gt - obst_pred), [1, 2, 3]))
