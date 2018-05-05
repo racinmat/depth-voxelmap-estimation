@@ -7,29 +7,9 @@ import metrics_np
 from prettytable import PrettyTable
 import os
 import Network
+from evaluation import load_model_with_structure
 from gta_math import grid_to_ndc_pcl_linear_view, ndc_to_view
 from visualization import save_pointcloud_csv
-
-
-def load_model_with_structure(model_name, graph, sess):
-    import re
-    tf.logging.info(" [*] Loading last checkpoint")
-
-    checkpoint_dir = os.path.join('checkpoint', model_name)
-    checkpoint = tf.train.get_checkpoint_state(checkpoint_dir)
-    if not checkpoint or not checkpoint.model_checkpoint_path:
-        print(" [*] Failed to find a checkpoint")
-        return False, 0, None
-    checkpoint_name = os.path.basename(checkpoint.model_checkpoint_path)
-    data_file = os.path.join(checkpoint_dir, checkpoint_name)
-    meta_file = data_file + '.meta'
-    saver = tf.train.import_meta_graph(meta_file)
-    saver.restore(sess, data_file)
-    counter = int(next(re.finditer("(\d+)(?!.*\d)", checkpoint_name)).group(0))
-    last_layer = graph.get_tensor_by_name('network/inference:0')
-    input = graph.get_tensor_by_name('network/x:0')
-    print(" [*] Success to read {} in iteration {}".format(checkpoint_name, counter))
-    return True, input, last_layer
 
 
 def inference(model, input, rgb_image, sess):
@@ -62,16 +42,6 @@ def evaluate_model(model_name, rgb_img, truth_img):
         metrics_np.root_mean_squared_error(truth_img, pred_img),
         metrics_np.root_mean_squared_log_error(truth_img, pred_img),
         metrics_np.log10_error(truth_img, pred_img),
-    ]
-
-
-def get_evaluation_names():
-    return [
-        'treshold_1.25',
-        'mean_rel_err',
-        'rms',
-        'rms_log',
-        'log10_err',
     ]
 
 
@@ -164,8 +134,8 @@ def main():
     # ])
     # these are from testing set
     images = np.array([
-        ['ml-datasets-voxel/2018-03-07--17-18-16--767.jpg', 'ml-datasets-voxel/2018-03-07--17-18-16--767.npy'],
-        ['ml-datasets-voxel/2018-03-07--18-12-04--959.jpg', 'ml-datasets-voxel/2018-03-07--18-12-04--959.npy'],
+        ['ml-datasets-voxel/2018-03-07--16-40-42--901.jpg', 'ml-datasets-voxel/2018-03-07--16-40-42--901.npy'],
+        ['ml-datasets-voxel/2018-03-07--17-41-16--827.jpg', 'ml-datasets-voxel/2018-03-07--17-41-16--827.npy'],
         ['ml-datasets-voxel/2018-03-07--16-12-57--023.jpg', 'ml-datasets-voxel/2018-03-07--16-12-57--023.npy'],
         ['ml-datasets-voxel/2018-03-07--15-44-56--353.jpg', 'ml-datasets-voxel/2018-03-07--15-44-56--353.npy'],
     ])
