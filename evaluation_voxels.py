@@ -31,6 +31,21 @@ def evaluate_model(model_name, rgb_img):
     return pred_img
 
 
+def evaluate_voxel_metrics(model_name, rgb_image, voxels_gt):
+    # not running on any GPU, using only CPU
+    config = tf.ConfigProto(
+        device_count={'GPU': 0}
+    )
+    with tf.Graph().as_default() as graph:
+        with tf.Session(config=config) as sess:
+            _, input, model = load_model_with_structure(model_name, graph, sess)
+            voxel_metrics = get_accuracies_voxel(voxels_gt, model)
+            pred_voxels, metrics = sess.run([model, voxel_metrics], feed_dict={
+                input: rgb_image
+    })
+    return metrics, pred_voxels
+
+
 def grid_voxelmap_to_pointcloud(ndc_grid):
     z_meters_min = 1.5
     z_meters_max = 25
@@ -97,10 +112,10 @@ def predict_voxels_to_pointcloud(batch_rgb, batch_depths, model_names):
         save_pointcloud_csv(pcl.T[:, 0:3], "evaluate/orig-voxelmap-{}.csv".format(i))
 
     for model_name in model_names:
-        pred_voxels = evaluate_model(model_name, batch_rgb)
-        voxel_metrics = get_accuracies_voxel(batch_depths, pred_voxels)
+        # pred_voxels = evaluate_model(model_name, batch_rgb)
+        metrics, pred_voxels = evaluate_voxel_metrics(model_name, batch_rgb, batch_depths)
 
-        print('voxel_metrics', voxel_metrics)
+        print('metrics', metrics)
 
         # saving images
         for i in range(Network.BATCH_SIZE):

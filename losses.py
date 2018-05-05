@@ -11,6 +11,10 @@ def is_free(voxel):
     return (voxel < OBSTACLE_THRESHOLD) & (voxel >= 0)  # just check o be compatible with unknown voxels
 
 
+def safe_log(value, epsilon=1e-9):
+    return tf.log(tf.maximum(value, epsilon))
+
+
 def tf_labels_to_info_gain(labels, logits, alpha=0.2):
     # int 16 stačí, protože je to index binu pro hloubku
     last_axis = len(logits.shape) - 1
@@ -109,7 +113,8 @@ def logistic_voxelwise_loss_with_undefined(labels, predicted):
     print(labels_shifted.dtype)
     print(known_mask.dtype)
     # known_mask = tf.Print(known_mask, [tf.reduce_sum(known_mask)], 'known mask sum: ')
-    logistic_loss = known_mask * tf.log(tf.ones_like(labels) + tf.exp(- labels_shifted * predicted))
+    # https://www.tensorflow.org/api_docs/python/tf/log1p is log(1 + x)
+    logistic_loss = known_mask * tf.log1p(tf.exp(- labels_shifted * predicted))
     loss = tf.reduce_mean(tf.reduce_sum(logistic_loss, [1, 2, 3]))  # loss is too low is I just use mean
     # loss = tf.Print(loss, [loss], 'loss value: ')
     return tf.identity(loss, 'loss')
@@ -120,8 +125,14 @@ def softmax_voxelwise_loss_with_undefined(labels, predicted):
     # unknown voxels have -1 values, so we unify it with free voxels here for BC
     # because I use equality to obstacle and free, I don't need masking
     # to be independent on batch size, I sum all voxels per sample, but mean per samples in batch
+    # todo: zeptat se, jestli to u toho logu mám maxovat nebo ne, a jak řešit záporné hodnoty
+
     print(predicted.shape)
-    positives = tf.cast(tf.equal(labels, 1), dtype=tf.float32) * tf.log(predicted)
-    negatives = tf.cast(tf.equal(labels, 0), dtype=tf.float32) * tf.log(1 - predicted)
+    # predicted data are sometimes
+    predicted = tf.Print(predicted, [predicted])
+    positives = tf.cast(tf.equal(labels, 1), dtype=tf.float32) * safe_log(predicted)
+    positives = tf.Print(positives, [positives])
+    negatives = tf.cast(tf.equal(labels, 0), dtype=tf.float32) * safe_log(1 - predicted)
+    negatives = tf.Print(negatives, [negatives])
     loss = tf.reduce_mean(tf.reduce_sum(positives + negatives, [1, 2, 3]))
     return tf.identity(loss, 'loss')
