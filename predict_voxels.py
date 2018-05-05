@@ -48,14 +48,13 @@ def main():
 
     Network.BATCH_SIZE = len(images)
     ds = dataset.DataSet(len(images))
-    filename_list = tf.data.Dataset.from_tensor_slices((images[:, 0], images[:, 1]))
+    filename_list = tf.data.Dataset.from_tensor_slices(images)
     images = ds.filenames_to_batch_voxel_rgb_only(filename_list)
     config = tf.ConfigProto(
         device_count={'GPU': 0}
     )
     with tf.Session(config=config) as sess:
-        batch_rgb = sess.run(
-            [images])
+        batch_rgb = sess.run(images)
     print('evaluation dataset loaded')
 
     predict_voxels_to_pointcloud_without_gt(batch_rgb, model_names)

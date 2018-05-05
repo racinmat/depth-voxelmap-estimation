@@ -118,7 +118,7 @@ class DataSet:
         return batch_images, batch_voxels, batch_depths
 
     def filenames_to_batch_voxel_rgb_only(self, rgb_filenames):
-        images = self.filename_to_input_image(rgb_filenames)
+        images = rgb_filenames.map(self.filename_to_input_image)
         images = images.repeat()  # Repeat the input indefinitely
         images = images.batch(self.batch_size)
 
