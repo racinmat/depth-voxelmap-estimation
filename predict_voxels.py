@@ -19,7 +19,7 @@ def predict_voxels_to_pointcloud_without_gt(batch_rgb, model_names):
         im.save("evaluate-test/orig-rgb-{}.png".format(i))
 
     for model_name in model_names:
-        pred_voxels, _ = evaluate_model(model_name, batch_rgb)
+        pred_voxels = evaluate_model(model_name, batch_rgb)
 
         # saving images
         for i in range(Network.BATCH_SIZE):
@@ -44,6 +44,7 @@ def main():
         'evaluate-test/2018-03-30--09-14-13--507.jpg',
         'evaluate-test/31934476_10215502017054352_182588598875324416_n.jpg',
         'evaluate-test/31946042_10215502017774370_705717582623145984_n.jpg',
+        'evaluate-test/2018-03-30--09-19-17--598.jpg',
     ])
 
     Network.BATCH_SIZE = len(images)

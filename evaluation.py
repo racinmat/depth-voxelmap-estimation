@@ -2,10 +2,12 @@ import tensorflow as tf
 import numpy as np
 from PIL import Image
 import dataset
+import losses
 import metrics_np
 from prettytable import PrettyTable
 import os
 import Network
+import metrics_tf
 
 
 def load_model_with_structure(model_name, graph, sess):
@@ -66,6 +68,17 @@ def get_accuracies(truth_img, pred_img):
         metrics_np.root_mean_squared_log_error(truth_img, pred_img),
         metrics_np.log10_error(truth_img, pred_img),
     ]
+
+
+def get_accuracies_voxel(truth_voxel, pred_voxel):
+    return [
+        metrics_tf.voxel_false_positive_error(truth_voxel, pred_voxel),
+        metrics_tf.voxel_true_positive_error(truth_voxel, pred_voxel),
+        metrics_tf.voxel_iou_error(truth_voxel, pred_voxel),
+        losses.softmax_voxelwise_loss_with_undefined(truth_voxel, pred_voxel),
+        metrics_tf.voxel_l1_dist_with_unknown(truth_voxel, pred_voxel),
+    ]
+
 
 def get_evaluation_names():
     return [

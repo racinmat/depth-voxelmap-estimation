@@ -7,7 +7,7 @@ import metrics_np
 from prettytable import PrettyTable
 import os
 import Network
-from evaluation import load_model_with_structure, get_evaluation_names, evaluate_model, get_accuracies
+from evaluation import load_model_with_structure, get_evaluation_names, get_accuracies, get_accuracies_voxel
 from gta_math import grid_to_ndc_pcl_linear_view, ndc_to_view
 from visualization import save_pointcloud_csv
 
@@ -97,7 +97,10 @@ def predict_voxels_to_pointcloud(batch_rgb, batch_depths, model_names):
         save_pointcloud_csv(pcl.T[:, 0:3], "evaluate/orig-voxelmap-{}.csv".format(i))
 
     for model_name in model_names:
-        pred_voxels = evaluate_model(model_name, batch_rgb, batch_depths)
+        pred_voxels = evaluate_model(model_name, batch_rgb)
+        voxel_metrics = get_accuracies_voxel(batch_depths, pred_voxels)
+
+        print('voxel_metrics', voxel_metrics)
 
         # saving images
         for i in range(Network.BATCH_SIZE):
