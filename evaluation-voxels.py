@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 from PIL import Image
 import dataset
+import losses
 import metrics_np
 from prettytable import PrettyTable
 import os
@@ -25,7 +26,7 @@ def load_model_with_structure(model_name, graph, sess):
     saver = tf.train.import_meta_graph(meta_file)
     saver.restore(sess, data_file)
     counter = int(next(re.finditer("(\d+)(?!.*\d)", checkpoint_name)).group(0))
-    last_layer = graph.get_tensor_by_name('network/inference/Reshape_1:0')
+    last_layer = graph.get_tensor_by_name('network/inference:0')
     input = graph.get_tensor_by_name('network/x:0')
     print(" [*] Success to read {} in iteration {}".format(checkpoint_name, counter))
     return True, input, last_layer
@@ -145,16 +146,14 @@ def predict_voxels_to_pointcloud(batch_rgb, batch_depths, model_names):
         for i in range(Network.BATCH_SIZE):
             pred_voxelmap = pred_voxels[i, :, :, :]
             np.save("evaluate/pred-voxelmap-{}-{}.npy".format(i, model_name), pred_voxelmap)
-            pcl = grid_voxelmap_to_pointcloud(pred_voxelmap)
+            pcl = grid_voxelmap_to_pointcloud(losses.is_obstacle(pred_voxelmap))
             save_pointcloud_csv(pcl.T[:, 0:3], "evaluate/pred-voxelmap-{}-{}.csv".format(i, model_name))
 
 
 def main():
     model_names = [
-        '2018-04-29--22-35-13',
-        '2018-04-30--10-46-45',
-        '2018-05-01--00-20-51',
-        '2018-05-01--01-03-01',
+        '2018-05-04--22-57-49',
+        '2018-05-04--23-03-46',
     ]
 
     # images = np.array([
