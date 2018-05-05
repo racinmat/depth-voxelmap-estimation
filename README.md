@@ -34,6 +34,8 @@ Runs:
  - 2018-04-30--10-46-45 training voxelmaps, l2 loss, momentum with nesterov, momentum=0.9
  - 2018-05-01--00-20-51 training voxelmaps, logistic loss from paper, nadam
  - 2018-05-01--01-03-01 training voxelmaps, logistic loss from paper, nadam, new deconv layer, accidentally batchsize=1
+ - 2018-05-04--22-57-49 training voxelmaps, logistic loss from paper correctly (with weights), nadam, new metrics
+ - 2018-05-01--01-03-01 training voxelmaps, logistic loss from paper correctly (with weights), SGD with nesterov, new metrics
 
 
 dgs s momentem a nesteroff momentem je lepší než adam

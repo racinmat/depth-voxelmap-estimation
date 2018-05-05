@@ -49,7 +49,7 @@ CHECKPOINT_DIR = os.path.join('checkpoint', current_time)  # Directory name to s
 LOGS_DIR = 'logs'
 
 # GPU_IDX can be either integer, array or None. If None, only GPU is used
-GPU_IDX = [3]
+GPU_IDX = [0]
 # GPU_IDX = None
 
 # WEIGHTS_REGULARIZER = slim.l2_regularizer(CONV_WEIGHT_DECAY)
@@ -357,14 +357,13 @@ class Network(object):
         # this visualizes voxelmap as depth image
         depth_size = voxels.shape[3].value
         # by https://stackoverflow.com/questions/45115650/how-to-find-tensorflow-max-value-index-but-the-value-is-repeat
-        indices = tf.range(1,
-                           depth_size + 1)  # so there is no multiplication by 0 on this side, only 0 in voxelmap will force the 0
+        indices = tf.range(1, depth_size + 1)  # so there is no multiplication by 0 on this side, only 0 in voxelmap will force the 0
         indices = tf.expand_dims(indices, 0)
         indices = tf.expand_dims(indices, 0)
         indices = tf.expand_dims(indices, 0)
 
         depth = tf.argmax(tf.multiply(
-            tf.cast(tf.equal(voxels, True), dtype=tf.int32),
+            tf.cast(losses.is_obstacle(voxels), dtype=tf.int32),
             tf.tile(indices, [BATCH_SIZE, dataset.TARGET_HEIGHT, dataset.TARGET_WIDTH, 1])
         ), axis=3, output_type=tf.int32)
         depth = tf.scalar_mul(tf.constant(255 / depth_size, dtype=tf.float32),
