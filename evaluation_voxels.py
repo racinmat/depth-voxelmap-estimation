@@ -7,7 +7,7 @@ import metrics_np
 from prettytable import PrettyTable
 import os
 import Network
-from evaluation import load_model_with_structure
+from evaluation import load_model_with_structure, get_evaluation_names, evaluate_model, get_accuracies
 from gta_math import grid_to_ndc_pcl_linear_view, ndc_to_view
 from visualization import save_pointcloud_csv
 
@@ -19,7 +19,7 @@ def inference(model, input, rgb_image, sess):
     return image_val
 
 
-def evaluate_model(model_name, rgb_img, truth_img):
+def evaluate_model(model_name, rgb_img):
     # not running on any GPU, using only CPU
     config = tf.ConfigProto(
         device_count={'GPU': 0}
@@ -28,21 +28,7 @@ def evaluate_model(model_name, rgb_img, truth_img):
         with tf.Session(config=config) as sess:
             _, input, model = load_model_with_structure(model_name, graph, sess)
             pred_img = inference(model, input, rgb_img, sess)
-
-    # return pred_img, {
-    #     'treshold_1.25': metrics_np.depth_accuracy_under_treshold(truth_img, pred_img, 1.25),
-    #     'mean_rel_err': metrics_np.depth_mean_relative_error(truth_img, pred_img),
-    #     'rms': metrics_np.depth_root_mean_squared_error(truth_img, pred_img),
-    #     'rms_log': metrics_np.depth_root_mean_squared_log_error(truth_img, pred_img),
-    #     'log10_err': metrics_np.depth_log10_error(truth_img, pred_img),
-    # }
-    return pred_img, [
-        metrics_np.accuracy_under_treshold(truth_img, pred_img, 1.25),
-        metrics_np.mean_relative_error(truth_img, pred_img),
-        metrics_np.root_mean_squared_error(truth_img, pred_img),
-        metrics_np.root_mean_squared_log_error(truth_img, pred_img),
-        metrics_np.log10_error(truth_img, pred_img),
-    ]
+    return pred_img
 
 
 def grid_voxelmap_to_pointcloud(ndc_grid):
@@ -76,7 +62,8 @@ def evaluate_depth_metrics(batch_rgb, batch_depths, model_names):
     x = PrettyTable(column_names)
 
     for model_name in model_names:
-        pred_img, accuracies = evaluate_model(model_name, batch_rgb, batch_depths)
+        pred_img = evaluate_model(model_name, batch_rgb)
+        accuracies = get_accuracies(batch_rgb, batch_depths)
 
         # accuracies['name'] = model_name
         # x.add_row(accuracies.values())
@@ -110,7 +97,7 @@ def predict_voxels_to_pointcloud(batch_rgb, batch_depths, model_names):
         save_pointcloud_csv(pcl.T[:, 0:3], "evaluate/orig-voxelmap-{}.csv".format(i))
 
     for model_name in model_names:
-        pred_voxels, _ = evaluate_model(model_name, batch_rgb, batch_depths)
+        pred_voxels = evaluate_model(model_name, batch_rgb, batch_depths)
 
         # saving images
         for i in range(Network.BATCH_SIZE):

@@ -36,7 +36,7 @@ def inference(model, input, rgb_image, graph, sess):
     return image_val
 
 
-def evaluate_model(model_name, needs_conversion, rgb_img, truth_img):
+def evaluate_model(model_name, needs_conversion, rgb_img):
     # not running on any GPU, using only CPU
     config = tf.ConfigProto(
         device_count={'GPU': 0}
@@ -55,14 +55,17 @@ def evaluate_model(model_name, needs_conversion, rgb_img, truth_img):
     #     'rms_log': metrics_np.depth_root_mean_squared_log_error(truth_img, pred_img),
     #     'log10_err': metrics_np.depth_log10_error(truth_img, pred_img),
     # }
-    return pred_img, [
+    return pred_img
+
+
+def get_accuracies(truth_img, pred_img):
+    return [
         metrics_np.accuracy_under_treshold(truth_img, pred_img, 1.25),
         metrics_np.mean_relative_error(truth_img, pred_img),
         metrics_np.root_mean_squared_error(truth_img, pred_img),
         metrics_np.root_mean_squared_log_error(truth_img, pred_img),
         metrics_np.log10_error(truth_img, pred_img),
     ]
-
 
 def get_evaluation_names():
     return [
@@ -142,7 +145,8 @@ if __name__ == '__main__':
     x = PrettyTable(column_names)
 
     for model_name, needs_conv in model_names:
-        pred_img, accuracies = evaluate_model(model_name, needs_conv, batch_rgb, batch_depth)
+        pred_img = evaluate_model(model_name, needs_conv, batch_rgb)
+        accuracies = get_accuracies(batch_rgb, batch_depth)
         # accuracies['name'] = model_name
         # x.add_row(accuracies.values())
         accuracies.append(model_name)

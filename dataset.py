@@ -117,6 +117,15 @@ class DataSet:
         batch_images, batch_voxels, batch_depths = iterator.get_next()
         return batch_images, batch_voxels, batch_depths
 
+    def filenames_to_batch_voxel_rgb_only(self, rgb_filenames):
+        images = self.filename_to_input_image(rgb_filenames)
+        images = images.repeat()  # Repeat the input indefinitely
+        images = images.batch(self.batch_size)
+
+        iterator = images.make_one_shot_iterator()
+        batch_images = iterator.get_next()
+        return batch_images
+
     def csv_inputs(self, csv_file_path):
         filename = tf.constant([csv_file_path])
         filename_list = tf.data.Dataset.from_tensor_slices(filename)
