@@ -49,7 +49,7 @@ CHECKPOINT_DIR = os.path.join('checkpoint', current_time)  # Directory name to s
 LOGS_DIR = 'logs'
 
 # GPU_IDX can be either integer, array or None. If None, only GPU is used
-GPU_IDX = [0]
+GPU_IDX = [3]
 # GPU_IDX = None
 
 # WEIGHTS_REGULARIZER = slim.l2_regularizer(CONV_WEIGHT_DECAY)
@@ -274,8 +274,8 @@ class Network(object):
         # cost = losses.information_gain_loss_with_undefined(labels=self.y, logits=logits)
 
         # voxelwise losses
-        cost = losses.logistic_voxelwise_loss_with_undefined(labels=self.y, predicted=logits)
-        # cost = losses.softmax_voxelwise_loss_with_undefined(labels=self.y, predicted=logits)
+        # cost = losses.logistic_voxelwise_loss_with_undefined(labels=self.y, predicted=logits)
+        cost = losses.softmax_voxelwise_loss_with_undefined(labels=self.y, predicted=logits)
         # cost = losses.l2_voxelwise_loss_with_undefined(labels=self.y, logits=logits)
         tf.summary.scalar("cost", cost)
 
