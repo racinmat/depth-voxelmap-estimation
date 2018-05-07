@@ -49,7 +49,7 @@ CHECKPOINT_DIR = os.path.join('checkpoint', current_time)  # Directory name to s
 LOGS_DIR = 'logs'
 
 # GPU_IDX can be either integer, array or None. If None, only GPU is used
-GPU_IDX = [3]
+GPU_IDX = [0]
 # GPU_IDX = None
 
 # WEIGHTS_REGULARIZER = slim.l2_regularizer(CONV_WEIGHT_DECAY)
@@ -148,8 +148,8 @@ class Network(object):
     def initialize_by_resnet(self):
         # I initialize only trainable variables, not others. Now is unified saving and restoring
         loader = tf.train.Saver(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='network'))
-        loader.restore(self.sess, 'init-weights/resnet')
-        # loader.restore(self.sess, 'init-weights-2/resnet')    # initialization with new deconv layer
+        # loader.restore(self.sess, 'init-weights/resnet')
+        loader.restore(self.sess, 'init-weights-2/resnet')    # initialization with new deconv layer
         print('weights initialized')
 
     def inference(self):
@@ -233,8 +233,8 @@ class Network(object):
                                        normalizer_fn=None, activation_fn=None)
 
                     # experimentally adding one more layer
-                    # conv = slim.conv2d_transpose(conv, num_outputs=int(dataset.DEPTH_DIM / 2), kernel_size=5, stride=1,
-                    #                              normalizer_fn=None, activation_fn=None, scope='deconv-prefinal')
+                    conv = slim.conv2d_transpose(conv, num_outputs=int(dataset.DEPTH_DIM / 2), kernel_size=5, stride=1,
+                                                 normalizer_fn=None, activation_fn=tf.nn.leaky_relu, scope='deconv-prefinal')
 
                     conv = slim.conv2d_transpose(conv, num_outputs=dataset.DEPTH_DIM, kernel_size=8, stride=4,
                                                  normalizer_fn=None, activation_fn=None, scope='deconvFinal')
@@ -274,8 +274,8 @@ class Network(object):
         # cost = losses.information_gain_loss_with_undefined(labels=self.y, logits=logits)
 
         # voxelwise losses
-        # cost = losses.logistic_voxelwise_loss_with_undefined(labels=self.y, predicted=logits)
-        cost = losses.softmax_voxelwise_loss_with_undefined(labels=self.y, predicted=logits)
+        cost = losses.logistic_voxelwise_loss_with_undefined(labels=self.y, predicted=logits)
+        # cost = losses.softmax_voxelwise_loss_with_undefined(labels=self.y, predicted=logits)
         # cost = losses.l2_voxelwise_loss_with_undefined(labels=self.y, logits=logits)
         tf.summary.scalar("cost", cost)
 

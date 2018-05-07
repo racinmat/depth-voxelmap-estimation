@@ -129,10 +129,10 @@ def softmax_voxelwise_loss_with_undefined(labels, predicted):
 
     print(predicted.shape)
     # predicted data are sometimes
-    predicted = tf.Print(predicted, [predicted])
+    # predicted = tf.Print(predicted, [predicted])
     positives = tf.cast(tf.equal(labels, 1), dtype=tf.float32) * safe_log(predicted)
-    positives = tf.Print(positives, [positives])
+    # positives = tf.Print(positives, [positives])
     negatives = tf.cast(tf.equal(labels, 0), dtype=tf.float32) * safe_log(1 - predicted)
-    negatives = tf.Print(negatives, [negatives])
+    # negatives = tf.Print(negatives, [negatives])
     loss = tf.reduce_mean(tf.reduce_sum(positives + negatives, [1, 2, 3]))
     return tf.identity(loss, 'loss')
