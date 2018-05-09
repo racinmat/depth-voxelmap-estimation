@@ -35,11 +35,12 @@ Runs:
  - 2018-05-01--00-20-51 training voxelmaps, logistic loss from paper, nadam
  - 2018-05-01--01-03-01 training voxelmaps, logistic loss from paper, nadam, new deconv layer, accidentally batchsize=1
  - 2018-05-04--22-57-49 training voxelmaps, logistic loss from paper correctly (with weights), nadam, new metrics
- - 2018-05-01--01-03-01 training voxelmaps, logistic loss from paper correctly (with weights), SGD with nesterov, new metrics
+ - 2018-05-01--01-03-01 training voxelmaps, logistic loss from paper correctly (with weights), SGD with nesterov, new metrics           (from now on, logistic loss is correct)
  - 2018-05-06--00-03-04 training voxelmaps, softmax loss, SGC with nesterov, new metrics - not good
  - 2018-05-06--00-05-58 training voxelmaps, softmax loss, nadam, new metrics - not good
- - 2018-05-06--10-47-19 training voxelmaps, logistic loss from paper correctly (with weights), with new deconv, nadam, new metrics
- - 2018-05-06--10-48-08 training voxelmaps, logistic loss from paper correctly (with weights), with new deconv, SGD with nesterov, new metrics
+ - 2018-05-06--10-47-19 training voxelmaps, logistic loss, with new deconv(kernel=5,stride=1), nadam, new metrics - no activation, useless
+ - 2018-05-06--10-48-08 training voxelmaps, logistic loss, with new deconv, nadam, new metrics - no activation, useless
+ - 2018-05-07--17-22-10 training voxelmaps, logistic loss, with new deconv(kernel=5,stride=1,activation=lrelu), nadam, new metrics
 
 
 dgs s momentem a nesteroff momentem je lepší než adam
@@ -65,3 +66,10 @@ tensorboard --inspect --logdir=logs/2018-03-28--10-46-41 --tag=cost
 
 
 some insights: titan X is slower than 1080 ti, roughly 2 times, Titan Xp is only slightly faster than 1080 Ti.
+
+
+by htp -u racinmat I find my processes
+F5 - tree visualization
+by arrow I select process and kill it by F9
+
+filter for cost and metrics: cost|positive_rate|iou|dist_on
