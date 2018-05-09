@@ -31,8 +31,9 @@ def predict_voxels_to_pointcloud_without_gt(batch_rgb, model_names):
 
 def main():
     model_names = [
-        '2018-05-04--22-57-49',
-        '2018-05-04--23-03-46',
+        # '2018-05-04--22-57-49',
+        # '2018-05-04--23-03-46',
+        '2018-05-07--17-22-10',
     ]
 
     images = np.array([
@@ -45,6 +46,12 @@ def main():
         'evaluate-test/31934476_10215502017054352_182588598875324416_n.jpg',
         'evaluate-test/31946042_10215502017774370_705717582623145984_n.jpg',
         'evaluate-test/2018-03-30--09-19-17--598.jpg',
+        'evaluate-test/1367521646_6ebde5f80f_z.jpg',
+        'evaluate-test/2272564735_63f59857b7_z.jpg',
+        'evaluate-test/4682987533_530cff53e1_z.jpg',
+        'evaluate-test/72228787_79fe46ba25_z.jpg',
+        'evaluate-test/3859520659_e117d00fdc_z.jpg',
+        'evaluate-test/8240796375_54235112e5_z.jpg',
     ])
 
     Network.BATCH_SIZE = len(images)

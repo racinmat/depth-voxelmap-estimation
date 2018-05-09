@@ -35,7 +35,7 @@ Runs:
  - 2018-05-01--00-20-51 training voxelmaps, logistic loss from paper, nadam
  - 2018-05-01--01-03-01 training voxelmaps, logistic loss from paper, nadam, new deconv layer, accidentally batchsize=1
  - 2018-05-04--22-57-49 training voxelmaps, logistic loss from paper correctly (with weights), nadam, new metrics
- - 2018-05-01--01-03-01 training voxelmaps, logistic loss from paper correctly (with weights), SGD with nesterov, new metrics           (from now on, logistic loss is correct)
+ - 2018-05-04--23-03-46 training voxelmaps, logistic loss from paper correctly (with weights), SGD with nesterov, new metrics           (from now on, logistic loss is correct)
  - 2018-05-06--00-03-04 training voxelmaps, softmax loss, SGC with nesterov, new metrics - not good
  - 2018-05-06--00-05-58 training voxelmaps, softmax loss, nadam, new metrics - not good
  - 2018-05-06--10-47-19 training voxelmaps, logistic loss, with new deconv(kernel=5,stride=1), nadam, new metrics - no activation, useless
