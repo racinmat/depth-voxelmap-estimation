@@ -27,8 +27,8 @@ def evaluate_model(model_name, rgb_img):
     with tf.Graph().as_default() as graph:
         with tf.Session(config=config) as sess:
             _, input, model = load_model_with_structure(model_name, graph, sess)
-            pred_img = inference(model, input, rgb_img, sess)
-    return pred_img
+            pred_voxels = inference(model, input, rgb_img, sess)
+    return pred_voxels
 
 
 def evaluate_voxel_metrics(model_name, rgb_image, voxels_gt):
@@ -47,6 +47,7 @@ def evaluate_voxel_metrics(model_name, rgb_image, voxels_gt):
 
 
 def grid_voxelmap_to_pointcloud(ndc_grid):
+    ndc_grid = np.transpose(ndc_grid, (1, 0, 2))    # because of form it is in the output of network
     z_meters_min = 1.5
     z_meters_max = 25
     proj_matrix = np.array([[1.21006660e+00, 0.00000000e+00, 0.00000000e+00,
@@ -64,6 +65,28 @@ def grid_voxelmap_to_pointcloud(ndc_grid):
     return view_points_reconst
 
 
+def grid_voxelmap_to_paraview_pointcloud(ndc_grid):
+    ndc_grid = np.transpose(ndc_grid, (1, 0, 2))    # because of form it is in the output of network
+    # underlying functinons expect true/false points and only reconstruct true points, so we must make grid full of trues to get it working
+    positions_grid = np.ones_like(ndc_grid, dtype=bool)
+    z_meters_min = 1.5
+    z_meters_max = 25
+    proj_matrix = np.array([[1.21006660e+00, 0.00000000e+00, 0.00000000e+00,
+                             0.00000000e+00],
+                            [0.00000000e+00, 2.14450692e+00, 0.00000000e+00,
+                             0.00000000e+00],
+                            [0.00000000e+00, 0.00000000e+00, 1.49965283e-04,
+                             1.50022495e+00],
+                            [0.00000000e+00, 0.00000000e+00, -1.00000000e+00,
+                             0.00000000e+00]])
+    ndc_points_reconst = grid_to_ndc_pcl_linear_view(positions_grid, proj_matrix, z_meters_min, z_meters_max)
+    ndc_points_reconst = np.hstack((ndc_points_reconst, np.ones((ndc_points_reconst.shape[0], 1)))).T
+
+    points = np.argwhere(positions_grid)  # now I get all coords as a list of points so I can get values by them
+    view_points_reconst = ndc_to_view(ndc_points_reconst, proj_matrix)
+    return np.hstack((view_points_reconst, ndc_grid[points])).T
+
+
 def evaluate_depth_metrics(batch_rgb, batch_depths, model_names):
     for i in range(Network.BATCH_SIZE):
         im = Image.fromarray(batch_rgb[i, :, :, :].astype(np.uint8))
@@ -77,7 +100,7 @@ def evaluate_depth_metrics(batch_rgb, batch_depths, model_names):
     x = PrettyTable(column_names)
 
     for model_name in model_names:
-        pred_img = evaluate_model(model_name, batch_rgb)
+        pred_voxels = evaluate_model(model_name, batch_rgb)
         accuracies = get_accuracies(batch_rgb, batch_depths)
 
         # accuracies['name'] = model_name
@@ -87,7 +110,7 @@ def evaluate_depth_metrics(batch_rgb, batch_depths, model_names):
 
         # saving images
         for i in range(Network.BATCH_SIZE):
-            depth = pred_img[i, :, :, :]
+            depth = pred_voxels[i, :, :, :]
             if len(depth.shape) == 3 and depth.shape[2] > 1:
                 raise Exception('oh, boi, shape is going wild', depth.shape)
             depth = depth[:, :, 0]
@@ -122,13 +145,16 @@ def predict_voxels_to_pointcloud(batch_rgb, batch_depths, model_names):
             pred_voxelmap = pred_voxels[i, :, :, :]
             np.save("evaluate/pred-voxelmap-{}-{}.npy".format(i, model_name), pred_voxelmap)
             pcl = grid_voxelmap_to_pointcloud(losses.is_obstacle(pred_voxelmap))
+            pcl_values = grid_voxelmap_to_paraview_pointcloud(pred_voxelmap)
             save_pointcloud_csv(pcl.T[:, 0:3], "evaluate/pred-voxelmap-{}-{}.csv".format(i, model_name))
+            save_pointcloud_csv(pcl_values.T[:, 0:4], "evaluate-test/pred-voxelmap-{}-{}.csv".format(i, model_name))
 
 
 def main():
     model_names = [
-        '2018-05-04--22-57-49',
-        '2018-05-04--23-03-46',
+        # '2018-05-04--22-57-49',
+        # '2018-05-04--23-03-46',
+        '2018-05-07--17-22-10',
     ]
 
     # images = np.array([

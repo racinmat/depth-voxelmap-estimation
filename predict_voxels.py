@@ -8,7 +8,8 @@ from prettytable import PrettyTable
 import os
 import Network
 from evaluation import load_model_with_structure
-from evaluation_voxels import evaluate_model, grid_voxelmap_to_pointcloud
+from evaluation_voxels import evaluate_model, grid_voxelmap_to_pointcloud, inference, \
+    grid_voxelmap_to_paraview_pointcloud
 from gta_math import grid_to_ndc_pcl_linear_view, ndc_to_view
 from visualization import save_pointcloud_csv
 
@@ -26,13 +27,15 @@ def predict_voxels_to_pointcloud_without_gt(batch_rgb, model_names):
             pred_voxelmap = pred_voxels[i, :, :, :]
             np.save("evaluate-test/pred-voxelmap-{}-{}.npy".format(i, model_name), pred_voxelmap)
             pcl = grid_voxelmap_to_pointcloud(losses.is_obstacle(pred_voxelmap))
+            pcl_values = grid_voxelmap_to_paraview_pointcloud(pred_voxelmap)
             save_pointcloud_csv(pcl.T[:, 0:3], "evaluate-test/pred-voxelmap-{}-{}.csv".format(i, model_name))
+            save_pointcloud_csv(pcl_values.T[:, 0:4], "evaluate-test/pred-voxelmap-{}-{}.csv".format(i, model_name))
 
 
 def main():
     model_names = [
-        # '2018-05-04--22-57-49',
-        # '2018-05-04--23-03-46',
+        '2018-05-04--22-57-49',
+        '2018-05-04--23-03-46',
         '2018-05-07--17-22-10',
     ]
 
