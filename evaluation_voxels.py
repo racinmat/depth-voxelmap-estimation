@@ -84,7 +84,16 @@ def grid_voxelmap_to_paraview_pointcloud(ndc_grid):
 
     points = np.argwhere(positions_grid)  # now I get all coords as a list of points so I can get values by them
     view_points_reconst = ndc_to_view(ndc_points_reconst, proj_matrix)
-    return np.hstack((view_points_reconst, ndc_grid[points])).T
+    # print(view_points_reconst.shape)
+    # print(points.shape)
+    # print(np.array([[0,0,0], [1,1,1], [1,1,2], [2,1,2]]).shape)
+    # print(ndc_grid.shape)
+    # print(ndc_grid[[0,1,1,2], [0,1,1,1], [0,1,2,2]].shape)
+    # print(view_points_reconst.T.shape)
+    # print(ndc_grid[points[:, 0], points[:, 1], points[:, 2]].shape)
+    # print(view_points_reconst[0:3, :].T.shape)
+    # print(ndc_grid[points[:, 0], points[:, 1], points[:, 2]][:, np.newaxis].shape)
+    return np.hstack((view_points_reconst[0:3, :].T, ndc_grid[points[:, 0], points[:, 1], points[:, 2]][:, np.newaxis])).T
 
 
 def evaluate_depth_metrics(batch_rgb, batch_depths, model_names):
@@ -147,13 +156,13 @@ def predict_voxels_to_pointcloud(batch_rgb, batch_depths, model_names):
             pcl = grid_voxelmap_to_pointcloud(losses.is_obstacle(pred_voxelmap))
             pcl_values = grid_voxelmap_to_paraview_pointcloud(pred_voxelmap)
             save_pointcloud_csv(pcl.T[:, 0:3], "evaluate/pred-voxelmap-{}-{}.csv".format(i, model_name))
-            save_pointcloud_csv(pcl_values.T[:, 0:4], "evaluate-test/pred-voxelmap-{}-{}.csv".format(i, model_name))
+            save_pointcloud_csv(pcl_values.T[:, 0:4], "evaluate/pred-voxelmap-paraview-{}-{}.csv".format(i, model_name), True)
 
 
 def main():
     model_names = [
-        # '2018-05-04--22-57-49',
-        # '2018-05-04--23-03-46',
+        '2018-05-04--22-57-49',
+        '2018-05-04--23-03-46',
         '2018-05-07--17-22-10',
     ]
 

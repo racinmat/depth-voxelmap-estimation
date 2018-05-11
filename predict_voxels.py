@@ -29,7 +29,7 @@ def predict_voxels_to_pointcloud_without_gt(batch_rgb, model_names):
             pcl = grid_voxelmap_to_pointcloud(losses.is_obstacle(pred_voxelmap))
             pcl_values = grid_voxelmap_to_paraview_pointcloud(pred_voxelmap)
             save_pointcloud_csv(pcl.T[:, 0:3], "evaluate-test/pred-voxelmap-{}-{}.csv".format(i, model_name))
-            save_pointcloud_csv(pcl_values.T[:, 0:4], "evaluate-test/pred-voxelmap-{}-{}.csv".format(i, model_name))
+            save_pointcloud_csv(pcl_values.T[:, 0:4], "evaluate-test/pred-voxelmap-paraview-{}-{}.csv".format(i, model_name), True)
 
 
 def main():
