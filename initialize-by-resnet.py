@@ -133,5 +133,6 @@ with tf.Graph().as_default():
     print('tensors runs, going to save them')
     new_saver = tf.train.Saver(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='network'))
     # new_saver.save(sess, 'init-weights/resnet')   # common network
-    # new_saver.save(sess, 'init-weights-2/resnet')    # initialization with new deconv layer(5,1),(8-4)
-    new_saver.save(sess, 'init-weights-3/resnet')  # initialization with new deconv layer(2,2),(8-2)
+    # new_saver.save(sess, 'init-weights-2/resnet')    # initialization with new deconv layer(5,1),(8-4),depth=50
+    # new_saver.save(sess, 'init-weights-3/resnet')  # initialization with new deconv layer(2,2),(8-2),depth=50
+    new_saver.save(sess, 'init-weights-4/resnet')  # initialization with new deconv layer(2,2),(8-2),depth=200

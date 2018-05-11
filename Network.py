@@ -47,7 +47,7 @@ CHECKPOINT_DIR = os.path.join('checkpoint', current_time)  # Directory name to s
 LOGS_DIR = 'logs'
 
 # GPU_IDX can be either integer, array or None. If None, only CPU is used
-GPU_IDX = [0]
+GPU_IDX = [1]
 # GPU_IDX = None
 
 # WEIGHTS_REGULARIZER = slim.l2_regularizer(CONV_WEIGHT_DECAY)
@@ -151,8 +151,9 @@ class Network(object):
         # I initialize only trainable variables, not others. Now is unified saving and restoring
         loader = tf.train.Saver(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='network'))
         # loader.restore(self.sess, 'init-weights/resnet')
-        # loader.restore(self.sess, 'init-weights-2/resnet')    # initialization with new deconv layer(5,1),(8-4)
-        loader.restore(self.sess, 'init-weights-3/resnet')    # initialization with new deconv layer(2,2),(8-2)
+        # loader.restore(self.sess, 'init-weights-2/resnet')    # initialization with new deconv layer(5,1),(8-4),depth=50
+        # loader.restore(self.sess, 'init-weights-3/resnet')    # initialization with new deconv layer(2,2),(8-2),depth=50
+        loader.restore(self.sess, 'init-weights-4/resnet')    # initialization with new deconv layer(2,2),(8-2),depth=200
         print('weights initialized')
 
     def inference(self):
@@ -237,7 +238,7 @@ class Network(object):
                     print('shape before deconvs: ', conv.shape)
 
                     # experimentally adding one more layer
-                    conv = slim.conv2d_transpose(conv, num_outputs=int(dataset.DEPTH_DIM / 2), kernel_size=2, stride=2, # try these later
+                    conv = slim.conv2d_transpose(conv, num_outputs=int(dataset.DEPTH_DIM * 2), kernel_size=2, stride=2, # try these later
                     # conv = slim.conv2d_transpose(conv, num_outputs=int(dataset.DEPTH_DIM / 2), kernel_size=5, stride=1,
                                                  normalizer_fn=None, activation_fn=tf.nn.leaky_relu, scope='deconv-prefinal')
                     print('shape before last deconv: ', conv.shape)

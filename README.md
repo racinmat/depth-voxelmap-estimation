@@ -40,7 +40,9 @@ Runs:
  - 2018-05-06--00-05-58 training voxelmaps, softmax loss, nadam, new metrics - not good
  - 2018-05-06--10-47-19 training voxelmaps, logistic loss, with new deconv(kernel=5,stride=1), nadam, new metrics - no activation, useless
  - 2018-05-06--10-48-08 training voxelmaps, logistic loss, with new deconv, nadam, new metrics - no activation, useless
- - 2018-05-07--17-22-10 training voxelmaps, logistic loss, with new deconv(kernel=5,stride=1,activation=lrelu), nadam, new metrics
+ - 2018-05-07--17-22-10 training voxelmaps, logistic loss, with new deconv(kernel=5,stride=1,num_out=50,activation=lrelu), nadam, new metrics
+ - 2018-05-08--23-37-07 training voxelmaps, logistic loss, with new deconv(kernel=2,stride=2,num_out=50,activation=lrelu), nadam, new metrics
+ - 2018-05-11--00-10-54 training voxelmaps, logistic loss, with new deconv(kernel=2,stride=2,num_out=200,activation=lrelu), nadam, new metrics
 
 
 dgs s momentem a nesteroff momentem je lepší než adam
