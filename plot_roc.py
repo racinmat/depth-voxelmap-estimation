@@ -25,7 +25,12 @@ if __name__ == '__main__':
     ]
 
     for model_name in model_names:
-        with open('evaluate/roc-{}.rick'.format(model_name), 'rb') as f:
+        with open('evaluate/roc-{}-train.rick'.format(model_name), 'rb') as f:
             fpr, tpr, roc_auc = pickle.load(f)
 
-        plot_roc(fpr, tpr, roc_auc, model_name)
+        plot_roc(fpr, tpr, roc_auc, model_name+'-train')
+
+        with open('evaluate/roc-{}-test.rick'.format(model_name), 'rb') as f:
+            fpr, tpr, roc_auc = pickle.load(f)
+
+        plot_roc(fpr, tpr, roc_auc, model_name+'-test')
