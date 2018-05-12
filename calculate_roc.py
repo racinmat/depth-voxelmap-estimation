@@ -25,11 +25,11 @@ def predict_voxels(batch_rgb, batch_voxels, model_names):
     return results
 
 
-def plot_roc(pred_voxels, gt_voxels, model_name):
+def plot_roc(pred_voxels, gt_voxels, model_name, suffix):
     fpr, tpr, _ = roc_curve(gt_voxels.flatten(), pred_voxels.flatten(), 1, gt_voxels.flatten() != -1)  # because of masking
     roc_auc = auc(fpr, tpr)
 
-    with open('roc-{}.rick'.format(model_name), 'wb+') as f:
+    with open('evaluate/roc-{}.rick'.format(model_name), 'wb+') as f:
         pickle.dump((fpr, tpr, roc_auc), f)
 
 
@@ -44,7 +44,7 @@ def main():
 
     # counting ROC on first 20 samples from randomized dataset
     # Network.BATCH_SIZE = len(images)
-    Network.BATCH_SIZE = 20
+    Network.BATCH_SIZE = 30
     data_set = dataset.DataSet(Network.BATCH_SIZE)
 
     images, voxelmaps, _ = data_set.csv_inputs_voxels(Network.TRAIN_FILE)
@@ -56,11 +56,17 @@ def main():
     with tf.Session(config=config) as sess:
         batch_rgb, batch_voxels = sess.run(
             [images, voxelmaps])
+        batch_rgb_test, batch_voxels_test = sess.run(
+            [images, voxelmaps])
     print('evaluation dataset loaded')
 
     results = predict_voxels(batch_rgb, batch_voxels, model_names)
     for model_name, pred_voxels in results.items():
-        plot_roc(pred_voxels, batch_voxels, model_name)
+        plot_roc(pred_voxels, batch_voxels, model_name, '-train')
+
+    results_test = predict_voxels(batch_rgb_test, batch_voxels_test, model_names)
+    for model_name, pred_voxels in results_test.items():
+        plot_roc(pred_voxels, batch_voxels_test, model_name, '-test')
 
 
 if __name__ == '__main__':
