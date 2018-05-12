@@ -25,11 +25,11 @@ def predict_voxels(batch_rgb, batch_voxels, model_names):
     return results
 
 
-def plot_roc(pred_voxels, gt_voxels, model_name, suffix):
+def calc_and_persist_roc(pred_voxels, gt_voxels, model_name, suffix):
     fpr, tpr, _ = roc_curve(gt_voxels.flatten(), pred_voxels.flatten(), 1, gt_voxels.flatten() != -1)  # because of masking
     roc_auc = auc(fpr, tpr)
 
-    with open('evaluate/roc-{}.rick'.format(model_name), 'wb+') as f:
+    with open('evaluate/roc-{}-{}.rick'.format(model_name, suffix), 'wb+') as f:
         pickle.dump((fpr, tpr, roc_auc), f)
 
 
@@ -62,11 +62,11 @@ def main():
 
     results = predict_voxels(batch_rgb, batch_voxels, model_names)
     for model_name, pred_voxels in results.items():
-        plot_roc(pred_voxels, batch_voxels, model_name, '-train')
+        calc_and_persist_roc(pred_voxels, batch_voxels, model_name, 'train')
 
     results_test = predict_voxels(batch_rgb_test, batch_voxels_test, model_names)
     for model_name, pred_voxels in results_test.items():
-        plot_roc(pred_voxels, batch_voxels_test, model_name, '-test')
+        calc_and_persist_roc(pred_voxels, batch_voxels_test, model_name, 'test')
 
 
 if __name__ == '__main__':
