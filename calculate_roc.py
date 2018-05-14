@@ -79,18 +79,24 @@ def main():
     print('evaluation dataset loaded')
 
     results = predict_voxels(batch_rgb, batch_voxels, model_names)
-    for model_name, res in results.items():
-        pred_voxels, fn_val, tn_val, tp_val, fp_val = res
-        calc_and_persist_roc(pred_voxels, batch_voxels, model_name, 'train')
-        with open('evaluate/rates-{}-{}.rick'.format(model_name, 'train'), 'wb+') as f:
-            pickle.dump((fn_val, tn_val, tp_val, fp_val), f)
+    with open('evaluate/roc-dump-gt.rick', 'wb+') as f:
+        pickle.dump(batch_voxels, f)
+    with open('evaluate/roc-dump-train.rick', 'wb+') as f:
+        pickle.dump(results, f)
+    # for model_name, res in results.items():
+    #     pred_voxels, fn_val, tn_val, tp_val, fp_val = res
+    #     calc_and_persist_roc(pred_voxels, batch_voxels, model_name, 'train')
+    #     with open('evaluate/rates-{}-{}.rick'.format(model_name, 'train'), 'wb+') as f:
+    #         pickle.dump((fn_val, tn_val, tp_val, fp_val), f)
 
     results_test = predict_voxels(batch_rgb_test, batch_voxels_test, model_names)
-    for model_name, res in results_test.items():
-        pred_voxels, fn_val, tn_val, tp_val, fp_val = res
-        calc_and_persist_roc(pred_voxels, batch_voxels_test, model_name, 'test')
-        with open('evaluate/rates-{}-{}.rick'.format(model_name, 'test'), 'wb+') as f:
-            pickle.dump((fn_val, tn_val, tp_val, fp_val), f)
+    with open('evaluate/roc-dump-test.rick', 'wb+') as f:
+        pickle.dump(results_test, f)
+    # for model_name, res in results_test.items():
+    #     pred_voxels, fn_val, tn_val, tp_val, fp_val = res
+    #     calc_and_persist_roc(pred_voxels, batch_voxels_test, model_name, 'test')
+    #     with open('evaluate/rates-{}-{}.rick'.format(model_name, 'test'), 'wb+') as f:
+    #         pickle.dump((fn_val, tn_val, tp_val, fp_val), f)
 
 
 if __name__ == '__main__':
