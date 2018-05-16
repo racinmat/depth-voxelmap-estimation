@@ -93,25 +93,30 @@ def get_evaluation_names():
 if __name__ == '__main__':
     model_names = [
         # format is name, needs conversion from bins
-        ['2018-03-11--23-23-32', True],
-        ['2018-03-11--15-30-10', True],
-        ['2018-03-11--14-40-26', True],
-        ['2018-03-04--23-16-47', False],
+        ['2018-03-11--02-04-09', True],
+        # ['2018-03-11--15-30-10', True],
+        # ['2018-03-11--14-40-26', True],
+        # ['2018-03-04--23-16-47', False],
     ]
 
+    # images = np.array([
+    #     ['data/nyu_datasets/00836.jpg', 'data/nyu_datasets/00836.png'],
+    #     ['data/nyu_datasets/00952.jpg', 'data/nyu_datasets/00952.png'],
+    #     ['data/nyu_datasets/00953.jpg', 'data/nyu_datasets/00953.png'],
+    # ])
     images = np.array([
-        ['data/nyu_datasets/00836.jpg', 'data/nyu_datasets/00836.png'],
-        ['data/nyu_datasets/00952.jpg', 'data/nyu_datasets/00952.png'],
-        ['data/nyu_datasets/00953.jpg', 'data/nyu_datasets/00953.png'],
+        ['ml-datasets/2018-03-07--18-24-37--499.jpg', 'ml-datasets/2018-03-07--18-24-37--499.png'],
+        ['ml-datasets/2018-03-07--17-25-35--384.jpg', 'ml-datasets/2018-03-07--17-25-35--384.png'],
+        ['ml-datasets/2018-03-07--16-58-59--208.jpg', 'ml-datasets/2018-03-07--16-58-59--208.png'],
+        ['ml-datasets/2018-03-07--16-22-31--875.jpg', 'ml-datasets/2018-03-07--16-22-31--875.png'],
+        ['ml-datasets/2018-03-07--17-31-39--573.jpg', 'ml-datasets/2018-03-07--17-31-39--573.png'],
+        ['ml-datasets/2018-03-07--16-08-50--454.jpg', 'ml-datasets/2018-03-07--16-08-50--454.png'],
     ])
-
     Network.BATCH_SIZE = len(images)
     ds = dataset.DataSet(len(images))
-    records = tf.train.input_producer(images)
-    res = records.dequeue()
-    rgb_filename = res[0]
-    depth_filename = res[1]
-    images, depths, _, _ = ds.filenames_to_batch(rgb_filename, depth_filename)
+    filename_list = tf.data.Dataset.from_tensor_slices((images[:, 0], images[:, 1]))
+    images, depths, _, _ = ds.filenames_to_batch(filename_list)
+
     config = tf.ConfigProto(
         device_count={'GPU': 0}
     )
@@ -124,22 +129,9 @@ if __name__ == '__main__':
         coord.join(threads)
     print('evaluation dataset loaded')
 
-    # batch_rgb = np.zeros((len(images), dataset.IMAGE_HEIGHT, dataset.IMAGE_WIDTH, 3))
-    # batch_depth = np.zeros((len(images), dataset.TARGET_HEIGHT, dataset.TARGET_WIDTH, 1))
-    # for i, (rgb_name, depth_name) in enumerate(images):
-    #     rgb_img = Image.open(rgb_name)
-    #     rgb_img = rgb_img.resize((dataset.IMAGE_WIDTH, dataset.IMAGE_HEIGHT), Image.ANTIALIAS)
-    #     image_rgb = np.asarray(rgb_img)
-    #     batch_rgb[i, :, :, :] = image_rgb
-    #
-    #     depth_img = Image.open(depth_name)
-    #     depth_img = depth_img.resize((dataset.TARGET_WIDTH, dataset.TARGET_HEIGHT), Image.ANTIALIAS)
-    #     image_depth = np.asarray(depth_img)
-    #     batch_depth[i, :, :, 0] = image_depth
-
     for i in range(Network.BATCH_SIZE):
         im = Image.fromarray(batch_rgb[i, :, :, :].astype(np.uint8))
-        im.save("evaluate/orig-rgb-{}.png".format(i))
+        im.save("evaluate-depths/orig-rgb-{}.png".format(i))
 
         depth = batch_depth[i, :, :, :]
         if len(depth.shape) == 3 and depth.shape[2] > 1:
@@ -151,7 +143,7 @@ if __name__ == '__main__':
         else:
             depth = depth * 255.0
         im = Image.fromarray(depth.astype(np.uint8), mode="L")
-        im.save("evaluate/orig-depth-{}.png".format(i))
+        im.save("evaluate-depths/orig-depth-{}.png".format(i))
 
     column_names = get_evaluation_names()
     column_names.append('name')
@@ -177,6 +169,8 @@ if __name__ == '__main__':
             else:
                 depth = depth * 255.0
             im = Image.fromarray(depth.astype(np.uint8), mode="L")
-            im.save("evaluate/predicted-{}-{}.png".format(i, model_name))
+            im.save("evaluate-depths/predicted-{}-{}.png".format(i, model_name))
 
     print(x)
+# for checking validity of gzip: nohup $(gzip -t open_virtualscapes.tar.gz && echo ok || echo bad) &> is_open_ok.txt &
+# for gzip in nohup: nohup gzip open_virtualscapes.tar &

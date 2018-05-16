@@ -29,6 +29,15 @@ def evaluate_model(model_name, rgb_img, voxel_gt):
     config = tf.ConfigProto(
         device_count={'GPU': 0}
     )
+    # run on GPU
+    # os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+    #
+    # config = tf.ConfigProto(
+    #     log_device_placement=False
+    # )
+    # config.gpu_options.allow_growth = False
+    # config.gpu_options.allocator_type = 'BFC'
+
     with tf.Graph().as_default() as graph:
         with tf.Session(config=config) as sess:
             _, input, model = load_model_with_structure(model_name, graph, sess)
@@ -78,9 +87,12 @@ def main():
             [images, voxelmaps])
     print('evaluation dataset loaded')
 
-    results = predict_voxels(batch_rgb, batch_voxels, model_names)
     with open('evaluate/roc-dump-gt.rick', 'wb+') as f:
         pickle.dump(batch_voxels, f)
+    with open('evaluate/roc-dump-gt-test.rick', 'wb+') as f:
+        pickle.dump(batch_voxels_test, f)
+
+    results = predict_voxels(batch_rgb, batch_voxels, model_names)
     with open('evaluate/roc-dump-train.rick', 'wb+') as f:
         pickle.dump(results, f)
     # for model_name, res in results.items():
@@ -92,11 +104,11 @@ def main():
     results_test = predict_voxels(batch_rgb_test, batch_voxels_test, model_names)
     with open('evaluate/roc-dump-test.rick', 'wb+') as f:
         pickle.dump(results_test, f)
-    # for model_name, res in results_test.items():
-    #     pred_voxels, fn_val, tn_val, tp_val, fp_val = res
-    #     calc_and_persist_roc(pred_voxels, batch_voxels_test, model_name, 'test')
-    #     with open('evaluate/rates-{}-{}.rick'.format(model_name, 'test'), 'wb+') as f:
-    #         pickle.dump((fn_val, tn_val, tp_val, fp_val), f)
+    for model_name, res in results_test.items():
+        pred_voxels, fn_val, tn_val, tp_val, fp_val = res
+        calc_and_persist_roc(pred_voxels, batch_voxels_test, model_name, 'test')
+        with open('evaluate/rates-{}-{}.rick'.format(model_name, 'test'), 'wb+') as f:
+            pickle.dump((fn_val, tn_val, tp_val, fp_val), f)
 
 
 if __name__ == '__main__':
