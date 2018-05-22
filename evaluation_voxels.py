@@ -19,6 +19,16 @@ def inference(model, input, rgb_image, sess):
     return image_val
 
 
+def calc_loss(input, rgb_image, gt_depth, graph, sess):
+    y = graph.get_tensor_by_name('y:0')
+    loss = graph.get_tensor_by_name('loss:0')
+    image_val = sess.run(loss, feed_dict={
+        input: rgb_image,
+        y: gt_depth
+    })
+    return image_val
+
+
 def evaluate_model(model_name, rgb_img):
     # not running on any GPU, using only CPU
     config = tf.ConfigProto(
@@ -31,7 +41,20 @@ def evaluate_model(model_name, rgb_img):
     return pred_voxels
 
 
-def evaluate_voxel_metrics(model_name, rgb_image, voxels_gt):
+def evaluate_model_with_loss(model_name, rgb_img, gt_voxel):
+    # not running on any GPU, using only CPU
+    config = tf.ConfigProto(
+        device_count={'GPU': 0}
+    )
+    with tf.Graph().as_default() as graph:
+        with tf.Session(config=config) as sess:
+            _, input, model = load_model_with_structure(model_name, graph, sess)
+            pred_voxels = inference(model, input, rgb_img, sess)
+    pred_loss = calc_loss(input, rgb_img, gt_voxel, graph, sess)
+    return pred_voxels, pred_loss
+
+
+def calculate_voxel_metrics(model_name, rgb_image, voxels_gt):
     # not running on any GPU, using only CPU
     config = tf.ConfigProto(
         device_count={'GPU': 0}
@@ -134,6 +157,39 @@ def evaluate_depth_metrics(batch_rgb, batch_depths, model_names):
     print(x)
 
 
+def evaluate_voxel_metrics(batch_rgb, batch_depths, model_names):
+    column_names = get_evaluation_names()
+    column_names.append('name')
+    column_names.append('loss')
+    x = PrettyTable(column_names)
+
+    for model_name in model_names:
+        pred_voxels, loss = evaluate_model_with_loss(model_name, batch_rgb, batch_depths)
+        accuracies = get_accuracies_voxel(batch_rgb, batch_depths)
+
+        # accuracies['name'] = model_name
+        # x.add_row(accuracies.values())
+        accuracies.append(model_name)
+        accuracies.append(loss)
+        x.add_row(accuracies)
+
+        # saving images
+        for i in range(Network.BATCH_SIZE):
+            depth = pred_voxels[i, :, :, :]
+            if len(depth.shape) == 3 and depth.shape[2] > 1:
+                raise Exception('oh, boi, shape is going wild', depth.shape)
+            depth = depth[:, :, 0]
+
+            if np.max(depth) != 0:
+                depth = (depth / np.max(depth)) * 255.0
+            else:
+                depth = depth * 255.0
+            im = Image.fromarray(depth.astype(np.uint8), mode="L")
+            im.save("evaluate-voxel/predicted-{}-{}.png".format(i, model_name))
+
+    print(x)
+
+
 def predict_voxels_to_pointcloud(batch_rgb, batch_depths, model_names):
     for i in range(Network.BATCH_SIZE):
         im = Image.fromarray(batch_rgb[i, :, :, :].astype(np.uint8))
@@ -145,7 +201,7 @@ def predict_voxels_to_pointcloud(batch_rgb, batch_depths, model_names):
 
     for model_name in model_names:
         # pred_voxels = evaluate_model(model_name, batch_rgb)
-        metrics, pred_voxels = evaluate_voxel_metrics(model_name, batch_rgb, batch_depths)
+        metrics, pred_voxels = calculate_voxel_metrics(model_name, batch_rgb, batch_depths)
 
         print('metrics', metrics)
 
@@ -157,6 +213,39 @@ def predict_voxels_to_pointcloud(batch_rgb, batch_depths, model_names):
             pcl_values = grid_voxelmap_to_paraview_pointcloud(pred_voxelmap)
             save_pointcloud_csv(pcl.T[:, 0:3], "evaluate/pred-voxelmap-{}-{}.csv".format(i, model_name))
             save_pointcloud_csv(pcl_values.T[:, 0:4], "evaluate/pred-voxelmap-paraview-{}-{}.csv".format(i, model_name), True)
+
+
+def do_metrics_evaluation():
+    model_names = [
+        # format is name, needs conversion from bins
+        '2018-05-04--22-57-49',
+        '2018-05-04--23-03-46',
+        '2018-05-06--00-03-04',
+        '2018-05-06--00-05-58',
+        '2018-05-07--17-22-10',
+        '2018-05-08--23-37-07',
+        '2018-05-11--00-10-54',
+    ]
+    images = np.array([
+        ['ml-datasets-voxel/2018-03-07--16-40-42--901.jpg', 'ml-datasets-voxel/2018-03-07--16-40-42--901.npy'],
+        ['ml-datasets-voxel/2018-03-07--17-41-16--827.jpg', 'ml-datasets-voxel/2018-03-07--17-41-16--827.npy'],
+        ['ml-datasets-voxel/2018-03-07--16-12-57--023.jpg', 'ml-datasets-voxel/2018-03-07--16-12-57--023.npy'],
+        ['ml-datasets-voxel/2018-03-07--15-44-56--353.jpg', 'ml-datasets-voxel/2018-03-07--15-44-56--353.npy'],
+    ])
+
+    Network.BATCH_SIZE = len(images)
+    ds = dataset.DataSet(len(images))
+    filename_list = tf.data.Dataset.from_tensor_slices((images[:, 0], images[:, 1]))
+    images, voxels, depths = ds.filenames_to_batch_voxel(filename_list)
+
+    config = tf.ConfigProto(
+        device_count={'GPU': 0}
+    )
+    with tf.Session(config=config) as sess:
+        batch_images, batch_voxels, batch_depths = sess.run(
+            [images, voxels, depths])
+
+    evaluate_voxel_metrics(batch_images, batch_voxels, model_names)
 
 
 def main():
@@ -197,4 +286,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    # main()
+    do_metrics_evaluation()

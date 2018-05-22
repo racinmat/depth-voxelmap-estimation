@@ -38,7 +38,17 @@ def inference(model, input, rgb_image, graph, sess):
     return image_val
 
 
-def evaluate_model(model_name, needs_conversion, rgb_img):
+def calc_loss(input, rgb_image, gt_depth, graph, sess):
+    y = graph.get_tensor_by_name('y:0')
+    loss = graph.get_tensor_by_name('loss:0')
+    image_val = sess.run(loss, feed_dict={
+        input: rgb_image,
+        y: gt_depth
+    })
+    return image_val
+
+
+def evaluate_model(model_name, needs_conversion, rgb_img, gt_depth):
     # not running on any GPU, using only CPU
     config = tf.ConfigProto(
         device_count={'GPU': 0}
@@ -49,15 +59,9 @@ def evaluate_model(model_name, needs_conversion, rgb_img):
             if needs_conversion:
                 model = Network.Network.bins_to_depth(model)
             pred_img = inference(model, input, rgb_img, graph, sess)
+            pred_loss = calc_loss(input, rgb_img, gt_depth, graph, sess)
 
-    # return pred_img, {
-    #     'treshold_1.25': metrics_np.depth_accuracy_under_treshold(truth_img, pred_img, 1.25),
-    #     'mean_rel_err': metrics_np.depth_mean_relative_error(truth_img, pred_img),
-    #     'rms': metrics_np.depth_root_mean_squared_error(truth_img, pred_img),
-    #     'rms_log': metrics_np.depth_root_mean_squared_log_error(truth_img, pred_img),
-    #     'log10_err': metrics_np.depth_log10_error(truth_img, pred_img),
-    # }
-    return pred_img
+    return pred_img, pred_loss
 
 
 def get_accuracies(truth_img, pred_img):
@@ -93,12 +97,16 @@ def get_evaluation_names():
 if __name__ == '__main__':
     model_names = [
         # format is name, needs conversion from bins
-        ['2018-03-11--02-04-09', True],
-        # ['2018-03-11--15-30-10', True],
-        # ['2018-03-11--14-40-26', True],
-        # ['2018-03-04--23-16-47', False],
+        ['2018-03-29--12-41-37', True],
+        ['2018-04-01--00-25-06', True],
+        ['2018-04-01--00-26-49', True],
+        ['2018-04-01--00-32-39', True],
+        ['2018-04-02--02-51-28', True],
+        ['2018-04-02--02-52-07', True],   # is really shitty
+        ['2018-04-02--02-59-31', True],
+        ['2018-04-05--09-15-19', True],     # is really shitty too
+        ['2018-04-05--09-22-22', True],
     ]
-
     # images = np.array([
     #     ['data/nyu_datasets/00836.jpg', 'data/nyu_datasets/00836.png'],
     #     ['data/nyu_datasets/00952.jpg', 'data/nyu_datasets/00952.png'],
@@ -109,24 +117,20 @@ if __name__ == '__main__':
         ['ml-datasets/2018-03-07--17-25-35--384.jpg', 'ml-datasets/2018-03-07--17-25-35--384.png'],
         ['ml-datasets/2018-03-07--16-58-59--208.jpg', 'ml-datasets/2018-03-07--16-58-59--208.png'],
         ['ml-datasets/2018-03-07--16-22-31--875.jpg', 'ml-datasets/2018-03-07--16-22-31--875.png'],
-        ['ml-datasets/2018-03-07--17-31-39--573.jpg', 'ml-datasets/2018-03-07--17-31-39--573.png'],
+        ['ml-datasets/2018-03-07--15-59-44--171.jpg', 'ml-datasets/2018-03-07--15-59-44--171.png'],
         ['ml-datasets/2018-03-07--16-08-50--454.jpg', 'ml-datasets/2018-03-07--16-08-50--454.png'],
     ])
     Network.BATCH_SIZE = len(images)
     ds = dataset.DataSet(len(images))
     filename_list = tf.data.Dataset.from_tensor_slices((images[:, 0], images[:, 1]))
-    images, depths, _, _ = ds.filenames_to_batch(filename_list)
+    images, depths, depths_bins, depths_reconstructed = ds.filenames_to_batch(filename_list)
 
     config = tf.ConfigProto(
         device_count={'GPU': 0}
     )
     with tf.Session(config=config) as sess:
-        coord = tf.train.Coordinator()
-        threads = tf.train.start_queue_runners(sess=sess, coord=coord)
-        batch_rgb, batch_depth = sess.run(
-            [images, depths])
-        coord.request_stop()
-        coord.join(threads)
+        batch_rgb, batch_depth, batch_bins, batch_gt = sess.run(
+            [images, depths, depths_bins, depths_reconstructed])
     print('evaluation dataset loaded')
 
     for i in range(Network.BATCH_SIZE):
@@ -142,19 +146,36 @@ if __name__ == '__main__':
             depth = (depth / np.max(depth)) * 255.0
         else:
             depth = depth * 255.0
+
         im = Image.fromarray(depth.astype(np.uint8), mode="L")
         im.save("evaluate-depths/orig-depth-{}.png".format(i))
 
+        depth_reconst = batch_gt[i, :, :]
+        if np.max(depth_reconst) != 0:
+            depth_reconst = (depth_reconst / np.max(depth_reconst)) * 255.0
+        else:
+            depth_reconst = depth_reconst * 255.0
+        im = Image.fromarray(depth_reconst.astype(np.uint8), mode="L")
+        im.save("evaluate-depths/gt-depth-{}.png".format(i))
+
+        im = Image.fromarray(255 - depth.astype(np.uint8), mode="L")
+        im.save("evaluate-depths/orig-depth-inv-{}.png".format(i))
+
+        im = Image.fromarray(255 - depth_reconst.astype(np.uint8), mode="L")
+        im.save("evaluate-depths/gt-depth-inv-{}.png".format(i))
+
     column_names = get_evaluation_names()
     column_names.append('name')
+    column_names.append('loss')
     x = PrettyTable(column_names)
 
     for model_name, needs_conv in model_names:
-        pred_img = evaluate_model(model_name, needs_conv, batch_rgb)
-        accuracies = get_accuracies(batch_rgb, batch_depth)
+        pred_img, pred_loss = evaluate_model(model_name, needs_conv, batch_rgb, batch_bins)
+        accuracies = get_accuracies(batch_gt, pred_img[:, :, :, 0])
         # accuracies['name'] = model_name
         # x.add_row(accuracies.values())
         accuracies.append(model_name)
+        accuracies.append(pred_loss)
         x.add_row(accuracies)
 
         # saving images

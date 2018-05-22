@@ -13,7 +13,7 @@ Runs:
  - 2018-03-11--14-40-26 same as above, but initial learning rate is 1e-5
  - 2018-03-11--15-30-10 same as above, but initial learning rate is 1e-4, decay is correct, *0.1 (dividing by 10)
  - 2018-03-11--16-59-14 same as above, but loss from the other paper, Estimating Depth from Monocular Images... tried
- - 2018-03-13--03-52-42 whole nyu dataset with the above mentioned dataset
+ - 2018-03-13--03-52-42 whole nyu dataset with the above mentioned setup
  - 2018-03-19--04-14-04 whole GTA dataset, but with incorrect depth loaded
  - 2018-03-26--19-25-51 whole GTA dataset, with fixed depth loading and preprocessing
  - 2018-03-28--13-55-48 trying to overfit on 40 GTA images, batch size = 4

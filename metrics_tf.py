@@ -53,21 +53,21 @@ def log(x, base):
 def voxel_false_positive_error(voxel_gt, voxel_pred):
     # formula is FP / FP + TN
     # formula is false positive / (false positive + true negative)
-    # TN = true negative means voxel_pred == 0 & voxel_gt == 0
-    # FP = false positive means voxel_pred == 1 & voxel_gt == 0
+    # TN = true negative means voxel_gt == 0 & voxel_pred == 0
+    # FP = false positive means voxel_gt == 0 & voxel_pred == 1
     print('voxel_gt.shape', voxel_gt.shape)
     print('voxel_pred.shape', voxel_pred.shape)
     tn = tf.reduce_sum(tf.cast(is_free(voxel_gt) & is_free(voxel_pred), dtype=tf.float32))
-    fp = tf.reduce_sum(tf.cast(is_obstacle(voxel_gt) & is_free(voxel_pred), dtype=tf.float32))
+    fp = tf.reduce_sum(tf.cast(is_free(voxel_gt) & is_obstacle(voxel_pred), dtype=tf.float32))
     return fp / (fp + tn)
 
 
 def voxel_true_positive_error(voxel_gt, voxel_pred):
     # formula is TP / FN + TP
     # formula is true positive / (false negative + true positive)
-    # FN = false negative means voxel_pred == 0 & voxel_gt == 1
-    # TP = true positive means voxel_pred == 1 & voxel_gt == 1
-    fn = tf.reduce_sum(tf.cast(is_free(voxel_gt) & is_obstacle(voxel_pred), dtype=tf.int32))
+    # FN = false negative means voxel_gt == 1 & voxel_pred == 0
+    # TP = true positive means voxel_gt == 1 & voxel_pred == 1
+    fn = tf.reduce_sum(tf.cast(is_obstacle(voxel_gt) & is_free(voxel_pred), dtype=tf.int32))
     tp = tf.reduce_sum(tf.cast(is_obstacle(voxel_gt) & is_obstacle(voxel_pred), dtype=tf.int32))
     return tp / (fn + tp)
 
