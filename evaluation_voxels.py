@@ -1,3 +1,4 @@
+import csv
 import tensorflow as tf
 import numpy as np
 from PIL import Image
@@ -19,14 +20,18 @@ def inference(model, input, rgb_image, sess):
     return image_val
 
 
-def calc_loss(input, rgb_image, gt_depth, graph, sess):
+def calc_loss(input, rgb_image, gt_depth, model, graph, sess):
     y = graph.get_tensor_by_name('y:0')
     loss = graph.get_tensor_by_name('loss:0')
-    image_val = sess.run(loss, feed_dict={
+    loss_val = sess.run(loss, feed_dict={
         input: rgb_image,
         y: gt_depth
     })
-    return image_val
+    fpr, tpr, iou, softmax, l1_dist = sess.run(get_accuracies_voxel(gt_depth, model), feed_dict={
+        input: rgb_image,
+        y: gt_depth
+    })
+    return loss_val, fpr, tpr, iou, softmax, l1_dist
 
 
 def evaluate_model(model_name, rgb_img):
@@ -50,8 +55,8 @@ def evaluate_model_with_loss(model_name, rgb_img, gt_voxel):
         with tf.Session(config=config) as sess:
             _, input, model = load_model_with_structure(model_name, graph, sess)
             pred_voxels = inference(model, input, rgb_img, sess)
-    pred_loss = calc_loss(input, rgb_img, gt_voxel, graph, sess)
-    return pred_voxels, pred_loss
+            pred_loss, fpr, tpr, iou, softmax, l1_dist = calc_loss(input, rgb_img, gt_voxel, model, graph, sess)
+    return pred_voxels, pred_loss, fpr, tpr, iou, softmax, l1_dist
 
 
 def calculate_voxel_metrics(model_name, rgb_image, voxels_gt):
@@ -65,12 +70,12 @@ def calculate_voxel_metrics(model_name, rgb_image, voxels_gt):
             voxel_metrics = get_accuracies_voxel(voxels_gt, model)
             pred_voxels, metrics = sess.run([model, voxel_metrics], feed_dict={
                 input: rgb_image
-    })
+            })
     return metrics, pred_voxels
 
 
 def grid_voxelmap_to_pointcloud(ndc_grid):
-    ndc_grid = np.transpose(ndc_grid, (1, 0, 2))    # because of form it is in the output of network
+    ndc_grid = np.transpose(ndc_grid, (1, 0, 2))  # because of form it is in the output of network
     z_meters_min = 1.5
     z_meters_max = 25
     proj_matrix = np.array([[1.21006660e+00, 0.00000000e+00, 0.00000000e+00,
@@ -89,7 +94,7 @@ def grid_voxelmap_to_pointcloud(ndc_grid):
 
 
 def grid_voxelmap_to_paraview_pointcloud(ndc_grid):
-    ndc_grid = np.transpose(ndc_grid, (1, 0, 2))    # because of form it is in the output of network
+    ndc_grid = np.transpose(ndc_grid, (1, 0, 2))  # because of form it is in the output of network
     # underlying functinons expect true/false points and only reconstruct true points, so we must make grid full of trues to get it working
     positions_grid = np.ones_like(ndc_grid, dtype=bool)
     z_meters_min = 1.5
@@ -116,7 +121,8 @@ def grid_voxelmap_to_paraview_pointcloud(ndc_grid):
     # print(ndc_grid[points[:, 0], points[:, 1], points[:, 2]].shape)
     # print(view_points_reconst[0:3, :].T.shape)
     # print(ndc_grid[points[:, 0], points[:, 1], points[:, 2]][:, np.newaxis].shape)
-    return np.hstack((view_points_reconst[0:3, :].T, ndc_grid[points[:, 0], points[:, 1], points[:, 2]][:, np.newaxis])).T
+    return np.hstack(
+        (view_points_reconst[0:3, :].T, ndc_grid[points[:, 0], points[:, 1], points[:, 2]][:, np.newaxis])).T
 
 
 def evaluate_depth_metrics(batch_rgb, batch_depths, model_names):
@@ -158,34 +164,36 @@ def evaluate_depth_metrics(batch_rgb, batch_depths, model_names):
 
 
 def evaluate_voxel_metrics(batch_rgb, batch_depths, model_names):
-    column_names = get_evaluation_names()
-    column_names.append('name')
-    column_names.append('loss')
+    column_names = [
+        'loss',
+        'fpr',
+        'tpr',
+        'iou',
+        'softmax',
+        'l1_dist',
+        'name'
+    ]
     x = PrettyTable(column_names)
 
     for model_name in model_names:
-        pred_voxels, loss = evaluate_model_with_loss(model_name, batch_rgb, batch_depths)
-        accuracies = get_accuracies_voxel(batch_rgb, batch_depths)
-
-        # accuracies['name'] = model_name
-        # x.add_row(accuracies.values())
+        accuracies = evaluate_model_with_loss(model_name, batch_rgb, batch_depths)
+        accuracies = list(accuracies)[1:]  # because first are predicted voxels
         accuracies.append(model_name)
-        accuracies.append(loss)
         x.add_row(accuracies)
-
-        # saving images
-        for i in range(Network.BATCH_SIZE):
-            depth = pred_voxels[i, :, :, :]
-            if len(depth.shape) == 3 and depth.shape[2] > 1:
-                raise Exception('oh, boi, shape is going wild', depth.shape)
-            depth = depth[:, :, 0]
-
-            if np.max(depth) != 0:
-                depth = (depth / np.max(depth)) * 255.0
-            else:
-                depth = depth * 255.0
-            im = Image.fromarray(depth.astype(np.uint8), mode="L")
-            im.save("evaluate-voxel/predicted-{}-{}.png".format(i, model_name))
+        #
+        # # saving images
+        # for i in range(Network.BATCH_SIZE):
+        #     depth = pred_voxels[i, :, :, :]
+        #     if len(depth.shape) == 3 and depth.shape[2] > 1:
+        #         raise Exception('oh, boi, shape is going wild', depth.shape)
+        #     depth = depth[:, :, 0]
+        #
+        #     if np.max(depth) != 0:
+        #         depth = (depth / np.max(depth)) * 255.0
+        #     else:
+        #         depth = depth * 255.0
+        #     im = Image.fromarray(depth.astype(np.uint8), mode="L")
+        #     im.save("evaluate-voxel/predicted-{}-{}.png".format(i, model_name))
 
     print(x)
 
@@ -212,7 +220,8 @@ def predict_voxels_to_pointcloud(batch_rgb, batch_depths, model_names):
             pcl = grid_voxelmap_to_pointcloud(losses.is_obstacle(pred_voxelmap))
             pcl_values = grid_voxelmap_to_paraview_pointcloud(pred_voxelmap)
             save_pointcloud_csv(pcl.T[:, 0:3], "evaluate/pred-voxelmap-{}-{}.csv".format(i, model_name))
-            save_pointcloud_csv(pcl_values.T[:, 0:4], "evaluate/pred-voxelmap-paraview-{}-{}.csv".format(i, model_name), True)
+            save_pointcloud_csv(pcl_values.T[:, 0:4], "evaluate/pred-voxelmap-paraview-{}-{}.csv".format(i, model_name),
+                                True)
 
 
 def do_metrics_evaluation():
@@ -226,12 +235,17 @@ def do_metrics_evaluation():
         '2018-05-08--23-37-07',
         '2018-05-11--00-10-54',
     ]
-    images = np.array([
-        ['ml-datasets-voxel/2018-03-07--16-40-42--901.jpg', 'ml-datasets-voxel/2018-03-07--16-40-42--901.npy'],
-        ['ml-datasets-voxel/2018-03-07--17-41-16--827.jpg', 'ml-datasets-voxel/2018-03-07--17-41-16--827.npy'],
-        ['ml-datasets-voxel/2018-03-07--16-12-57--023.jpg', 'ml-datasets-voxel/2018-03-07--16-12-57--023.npy'],
-        ['ml-datasets-voxel/2018-03-07--15-44-56--353.jpg', 'ml-datasets-voxel/2018-03-07--15-44-56--353.npy'],
-    ])
+    # images = np.array([
+    #     ['ml-datasets-voxel/2018-03-07--16-40-42--901.jpg', 'ml-datasets-voxel/2018-03-07--16-40-42--901.npy'],
+    #     ['ml-datasets-voxel/2018-03-07--17-41-16--827.jpg', 'ml-datasets-voxel/2018-03-07--17-41-16--827.npy'],
+    #     ['ml-datasets-voxel/2018-03-07--16-12-57--023.jpg', 'ml-datasets-voxel/2018-03-07--16-12-57--023.npy'],
+    #     ['ml-datasets-voxel/2018-03-07--15-44-56--353.jpg', 'ml-datasets-voxel/2018-03-07--15-44-56--353.npy'],
+    # ])
+    # just loading them from CSV:
+    with open(Network.TEST_FILE, newline='') as csvfile:
+        images = csv.reader(csvfile, delimiter=',')
+        images = np.array(list(images))[0:10, :]
+    print('images: ', images)
 
     Network.BATCH_SIZE = len(images)
     ds = dataset.DataSet(len(images))
