@@ -1,13 +1,10 @@
 #!/bin/bash
-if [[ -z "${PYTHONPATH}" ]]; then
-  export PYTHONPATH="/home.stud/racinmat/GANy:/mnt/datagrid/personal/racinmat/depthEstimationNN1"
-else
-  export PYTHONPATH="${PYTHONPATH}:/home.stud/racinmat/GANy:/mnt/datagrid/personal/racinmat/depthEstimationNN1"
-fi
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64/
 
-cd ~
-source python35/bin/activate
+ml Pillow/5.0.0-goolfc-2018a-Python-3.6.4
+ml TensorFlow/1.7.0-goolfc-2018a-Python-3.6.4
+
+export PYTHONPATH="${PYTHONPATH}:/mnt/datagrid/personal/racinmat"
+export PYTHONPATH="${PYTHONPATH}:/mnt/datagrid/personal/racinmat/GTAVisionExport_postprocessing"
 
 cd /mnt/datagrid/personal/racinmat/depthEstimationNN1
-python task.py
+python3 task.py
