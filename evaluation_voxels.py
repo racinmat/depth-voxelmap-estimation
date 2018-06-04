@@ -230,6 +230,7 @@ def predict_voxels_to_pointcloud(batch_rgb, batch_depths, model_names, batch=0):
 
 
 def predict_voxels_to_pointcloud_multibatch(len_images, imgs, depths, model_names):
+    # imgs = tf.Print(imgs, [imgs, depths], 'running input rgb batch')
     # for CPU
     # config = tf.ConfigProto(device_count={'GPU': 0})
 
@@ -238,9 +239,7 @@ def predict_voxels_to_pointcloud_multibatch(len_images, imgs, depths, model_name
     config.gpu_options.allow_growth = False
     config.gpu_options.allocator_type = 'BFC'
     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-    config = tf.ConfigProto(
-        device_count={'GPU': 0}
-    )
+
     with tf.Session(config=config) as sess:
         for batch in range(int(len_images / Network.BATCH_SIZE)):
             batch_rgb, batch_depths = sess.run(
@@ -254,27 +253,28 @@ def predict_voxels_to_pointcloud_multibatch(len_images, imgs, depths, model_name
                 pcl = grid_voxelmap_to_pointcloud(voxels)
                 save_pointcloud_csv(pcl.T[:, 0:3], "evaluate-voxel/orig-voxelmap-{}-batch-{}.csv".format(i, batch))
 
-    print('evaluation loaded, ging to evaluation on dataset')
+    print('evaluation loaded, going to evaluation on dataset')
 
     for model_name in model_names:
-        with tf.Graph().as_default() as graph:
-            with tf.Session(config=config) as sess:
-                _, input, model = load_model_with_structure(model_name, graph, sess)
-                for batch in range(int(len_images / Network.BATCH_SIZE)):
-                    batch_rgb, batch_depths = sess.run(
-                        [imgs, depths])
-                    pred_voxels = inference(model, input, batch_rgb, sess)
+        print('going to evaluate model {}'.format(model_name))
+        graph = tf.get_default_graph()
+        with tf.Session(config=config) as sess:
+            _, input, model = load_model_with_structure(model_name, graph, sess)
+            for batch in range(int(len_images / Network.BATCH_SIZE)):
+                batch_rgb, batch_depths = sess.run(
+                    [imgs, depths])
+                pred_voxels = inference(model, input, batch_rgb, sess)
 
-                    # saving images
-                    for i in range(Network.BATCH_SIZE):
-                        pred_voxelmap = pred_voxels[i, :, :, :]
-                        np.save("evaluate-voxel/pred-voxelmap-{}-{}-batch-{}.npy".format(i, model_name, batch), pred_voxelmap)
-                        pcl = grid_voxelmap_to_pointcloud(losses.is_obstacle(pred_voxelmap))
-                        pcl_values = grid_voxelmap_to_paraview_pointcloud(pred_voxelmap)
-                        save_pointcloud_csv(pcl.T[:, 0:3], "evaluate-voxel/pred-voxelmap-{}-{}-batch-{}.csv".format(i, model_name, batch))
-                        save_pointcloud_csv(pcl_values.T[:, 0:4],
-                                            "evaluate-voxel/pred-voxelmap-paraview-{}-{}-batch-{}.csv".format(i, model_name, batch),
-                                            True)
+                # saving images
+                for i in range(Network.BATCH_SIZE):
+                    pred_voxelmap = pred_voxels[i, :, :, :]
+                    np.save("evaluate-voxel/pred-voxelmap-{}-{}-batch-{}.npy".format(i, model_name, batch), pred_voxelmap)
+                    pcl = grid_voxelmap_to_pointcloud(losses.is_obstacle(pred_voxelmap))
+                    pcl_values = grid_voxelmap_to_paraview_pointcloud(pred_voxelmap)
+                    save_pointcloud_csv(pcl.T[:, 0:3], "evaluate-voxel/pred-voxelmap-{}-{}-batch-{}.csv".format(i, model_name, batch))
+                    save_pointcloud_csv(pcl_values.T[:, 0:4],
+                                        "evaluate-voxel/pred-voxelmap-paraview-{}-{}-batch-{}.csv".format(i, model_name, batch),
+                                        True)
 
 
 def do_metrics_evaluation():
@@ -576,7 +576,7 @@ def main_multibatch():
 
     # Network.BATCH_SIZE = len(images)
     Network.BATCH_SIZE = 4
-    ds = dataset.DataSet(len(images))
+    ds = dataset.DataSet(Network.BATCH_SIZE)
     filename_list = tf.data.Dataset.from_tensor_slices((images[:, 0], images[:, 1]))
     imgs, depths, _ = ds.filenames_to_batch_voxel(filename_list)
 
@@ -584,5 +584,6 @@ def main_multibatch():
 
 
 if __name__ == '__main__':
-    main()
+    # main()
+    main_multibatch()
     # do_metrics_evaluation()
