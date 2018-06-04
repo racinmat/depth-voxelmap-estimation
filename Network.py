@@ -149,11 +149,17 @@ class Network(object):
 
     def initialize_by_resnet(self):
         # I initialize only trainable variables, not others. Now is unified saving and restoring
-        loader = tf.train.Saver(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='network'))
-        # loader.restore(self.sess, 'init-weights/resnet')
-        # loader.restore(self.sess, 'init-weights-2/resnet')    # initialization with new deconv layer(5,1),(8-4),depth=50
-        # loader.restore(self.sess, 'init-weights-3/resnet')    # initialization with new deconv layer(2,2),(8-2),depth=50
-        loader.restore(self.sess, 'init-weights-4/resnet')    # initialization with new deconv layer(2,2),(8-2),depth=200
+        saver = tf.train.Saver(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='network'))
+        # saver.restore(self.sess, 'init-weights/resnet')
+        # saver.restore(self.sess, 'init-weights-2/resnet')    # initialization with new deconv layer(5,1),(8-4),depth=50
+        # saver.restore(self.sess, 'init-weights-3/resnet')    # initialization with new deconv layer(2,2),(8-2),depth=50
+        saver.restore(self.sess, 'init-weights-4/resnet')    # initialization with new deconv layer(2,2),(8-2),depth=200
+        print('weights initialized')
+
+    def initialize_by_last_version(self):
+        # I initialize only trainable variables, not others. Now is unified saving and restoring
+        saver = tf.train.Saver(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='network'))
+        saver.restore(self.sess, tf.train.latest_checkpoint('checkpoint/2018-05-04--22-57-49'))
         print('weights initialized')
 
     def inference(self):
@@ -238,13 +244,13 @@ class Network(object):
                     print('shape before deconvs: ', conv.shape)
 
                     # experimentally adding one more layer
-                    conv = slim.conv2d_transpose(conv, num_outputs=int(dataset.DEPTH_DIM * 2), kernel_size=2, stride=2, # try these later
+                    # conv = slim.conv2d_transpose(conv, num_outputs=int(dataset.DEPTH_DIM * 2), kernel_size=2, stride=2, # try these later
                     # conv = slim.conv2d_transpose(conv, num_outputs=int(dataset.DEPTH_DIM / 2), kernel_size=5, stride=1,
-                                                 normalizer_fn=None, activation_fn=tf.nn.leaky_relu, scope='deconv-prefinal')
+                    #                              normalizer_fn=None, activation_fn=tf.nn.leaky_relu, scope='deconv-prefinal')
                     print('shape before last deconv: ', conv.shape)
 
-                    conv = slim.conv2d_transpose(conv, num_outputs=dataset.DEPTH_DIM, kernel_size=8, stride=2,
-                    # conv = slim.conv2d_transpose(conv, num_outputs=dataset.DEPTH_DIM, kernel_size=8, stride=4,
+                    # conv = slim.conv2d_transpose(conv, num_outputs=dataset.DEPTH_DIM, kernel_size=8, stride=2,
+                    conv = slim.conv2d_transpose(conv, num_outputs=dataset.DEPTH_DIM, kernel_size=8, stride=4,
                                                  normalizer_fn=None, activation_fn=None, scope='deconvFinal')
                     print('shape after last deconv: ', conv.shape)
                 else:
@@ -554,7 +560,8 @@ class Network(object):
             # Session
             with tf.Session(config=self.config) as self.sess:
                 self.sess.run(tf.global_variables_initializer())
-                self.initialize_by_resnet()
+                # self.initialize_by_resnet()   # retraining trained network instead of running new training
+                self.initialize_by_last_version()
                 # parameters
                 summary = tf.summary.merge_all()  # merge all summaries to dump them for tensorboard
 

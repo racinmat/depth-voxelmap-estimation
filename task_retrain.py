@@ -1,4 +1,5 @@
 # encoding: utf-8
+import os
 
 from tensorflow.python.platform import gfile
 import tensorflow as tf
@@ -9,6 +10,10 @@ current_time = time.strftime("%Y-%m-%d--%H-%M-%S", time.gmtime())
 
 
 def train():
+    Network.TRAIN_FILE = "train-voxel-gta-offroad.csv"
+    Network.TEST_FILE = "train-voxel-gta-offroad.csv"
+    Network.PREDICT_DIR = os.path.join('predict-offroad', current_time)
+    Network.CHECKPOINT_DIR = os.path.join('checkpoint-offroad', current_time)
     network = Network.Network()
     network.train()
 
