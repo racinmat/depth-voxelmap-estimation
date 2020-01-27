@@ -1,6 +1,8 @@
 # Single image depth estimation by dilated deep residual convolutional neural network and soft-weight-sum inference
 
-This repo is an implementation of this paper: https://arxiv.org/pdf/1705.00534.pdf
+This repository contains source code for trainingf neural networks in Matěj Račinský's master thesis, available [here](https://dspace.cvut.cz/handle/10467/76430).
+
+Also, this repo is an implementation of this paper: https://arxiv.org/pdf/1705.00534.pdf
 
 Explained better here: https://arxiv.org/pdf/1708.02287.pdf
 
